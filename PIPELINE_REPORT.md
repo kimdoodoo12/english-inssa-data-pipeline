@@ -1,7 +1,7 @@
 # 영어 슬랭 학습 데이터셋 구축 파이프라인 보고서
 
 **작성일**: 2026-05-19  
-**프로젝트**: English-INSSA-DATA-PROJECT  
+**프로젝트**: English-INSSA-Data-Pipeline (GitHub: `kimdoodoo12/english-inssa-data-pipeline`)  
 **최종 산출물**: `data_pipeline/output/final_dataset.jsonl` (3,293개 단어)
 
 ---
@@ -22,8 +22,9 @@
 실행 환경:
 
 ```bash
-pip install mwparserfromhell zstandard rapidfuzz openai numpy
+pip install -r data_pipeline/requirements.txt   # mwparserfromhell, zstandard, openai
 export OPENAI_API_KEY=sk-...
+# 실행 위치: 저장소 루트 (스크립트 내 경로가 모두 data_pipeline/ 기준 상대경로)
 ```
 
 ---
@@ -275,6 +276,11 @@ Stage 7에서는 AI를 새로 호출하지 않는다.
 입력:
 
 - `data_pipeline/output/word_summary.jsonl`
+- `data_pipeline/stratified_review_output/ranked_candidates_full.json` (보조 필드)
+
+> **선행 조건**: 보조 입력 파일은 `definition_en`, `slang_category` 등 부가 필드를 채우는 데 쓰인다.
+> `stratified_review_output/`은 `.gitignore` 대상이라 저장소에 포함되지 않으므로, 이 단계를
+> 재실행하려면 해당 파일을 별도로 확보해야 한다.
 
 출력:
 
@@ -329,10 +335,10 @@ AI 사용:
 서비스 카테고리:
 
 ```text
-친근·호칭, 긍정·동의, 감탄·반응, 강조 표현,
+칭찬·인정, 긍정·동의, 감탄·놀람, 강조 표현,
 일상 대화, SNS·인터넷 반응, 줄임말·약어, 감정 표현,
 비판·부정 반응, 관계·연애, 유머·밈, 게임·커뮤니티,
-애니·라이프스타일, 주의/거친 표현
+돈·라이프스타일, 주의/거친 표현
 ```
 
 ### `review_tool.py`
@@ -473,7 +479,7 @@ System prompt:
 ```text
 You are a Korean-English bilingual dictionary editor for a language learning app targeting Korean adults. For each slang word, do two things:
 1. Translate the English definition to natural, concise Korean (1-2 sentences max).
-2. Pick the best category from this list: "친근·호칭", "긍정·동의", "감탄·반응", "강조 표현", "일상 대화", "SNS·인터넷 반응", "줄임말·약어", "감정 표현", "비판·부정 반응", "관계·연애", "유머·밈", "게임·커뮤니티", "애니·라이프스타일", "주의/거친 표현"
+2. Pick the best category from this list: "칭찬·인정", "긍정·동의", "감탄·놀람", "강조 표현", "일상 대화", "SNS·인터넷 반응", "줄임말·약어", "감정 표현", "비판·부정 반응", "관계·연애", "유머·밈", "게임·커뮤니티", "돈·라이프스타일", "주의/거친 표현"
 
 Rules for translation:
 - Use Korean only (no English unless the slang term itself is kept).
@@ -507,7 +513,7 @@ Process these slang words. Return JSON: {"results": [{"word": "...", "definition
 System prompt:
 
 ```text
-You are a categorization expert for a Korean English slang learning app. For each slang word, pick the best category from this list: "친근·호칭", "긍정·동의", "감탄·반응", "강조 표현", "일상 대화", "SNS·인터넷 반응", "줄임말·약어", "감정 표현", "비판·부정 반응", "관계·연애", "유머·밈", "게임·커뮤니티", "애니·라이프스타일", "주의/거친 표현"
+You are a categorization expert for a Korean English slang learning app. For each slang word, pick the best category from this list: "칭찬·인정", "긍정·동의", "감탄·놀람", "강조 표현", "일상 대화", "SNS·인터넷 반응", "줄임말·약어", "감정 표현", "비판·부정 반응", "관계·연애", "유머·밈", "게임·커뮤니티", "돈·라이프스타일", "주의/거친 표현"
 
 Rules:
 - Choose 1 to 3 categories (most relevant first).
@@ -568,10 +574,113 @@ Stage 6의 `reddit_slang_llm_judger.py`는 이 파이프라인에서 AI가 처�
 
 ---
 
-## 11. 하드코딩 경로
+## 11. 하드코딩 경로 및 재현 시 주의사항
+
+### 하드코딩된 절대 경로
 
 ```text
-C:\Users\User\Downloads\reddit\comments\RC_2025-09.zst
-C:\Users\User\Downloads\reddit\comments\RC_2025-12.zst
-data_pipeline/dump/enwiktionary-20250920-pages-articles-multistream.xml.bz2
+C:\Users\User\Downloads\reddit\comments\RC_2025-09.zst   # parse_slang_raw.py:24
+C:\Users\User\Downloads\reddit\comments\RC_2025-12.zst   # parse_slang_raw.py:25
+                                                          # reddit_context_cache_builder.py:26-27 (동일)
+data_pipeline/dump/enwiktionary-20250920-pages-articles-multistream.xml.bz2  # parse_wiktionary.py:10
 ```
+
+Reddit 덤프 경로는 최초 구축 당시 작업 PC 기준이다. 다른 환경에서 Stage 2·5를 재실행하려면 각 스크립트 상단의 `REDDIT_DUMP_PATHS`를 수정해야 한다.
+
+### Stage 2 → Stage 3 경로 불일치
+
+Stage 2 출력 경로(`matched_candidates.json` 등)는 실행 디렉터리 기준 상대경로로 하드코딩되어 있으므로, Stage 3 실행 시 `--input` 인자로 실제 경로를 명시해야 한다.
+
+### 저장소에 포함되지 않는 입력
+
+`.gitignore` 대상이라 clone만으로는 확보되지 않는 파일들이다.
+
+| 경로 | 필요 단계 |
+|------|-----------|
+| `data_pipeline/dump/` | Stage 1 |
+| Reddit `.zst` 덤프 2개 | Stage 2, 5 |
+| `data_pipeline/data/` (중간 산출물) | Stage 3, 4, 5, 6 |
+| `data_pipeline/candidate_context_cache.jsonl` (~643MB) | Stage 6 |
+| `data_pipeline/stratified_review_output/ranked_candidates_full.json` | Stage 7 |
+
+Stage 1–7의 결과물인 `data_pipeline/output/` 하위 파일은 저장소에 커밋되어 있으므로, 서비스 투입 스크립트(6장)는 clone 직후 바로 실행 가능하다.
+
+### 미사용 리소스
+
+`data_pipeline/resources/` 의 4개 파일(`canonical_cue_map.json`, `domain_lexicon.json`, `polarity_lexicon.json`, `cannot_link_rules.json`)은 초기 실험 단계의 산물로, **현재 파이프라인의 어떤 스크립트도 참조하지 않는다.**
+
+---
+
+## 12. 검증 및 데이터 품질
+
+Stage 1–7과 서비스 투입 스크립트는 외부 덤프에 의존하지만, 아래 검증 도구는
+저장소에 커밋된 `output/` 만 읽으므로 clone 직후 실행된다.
+
+### `quality_report.py`
+
+| 항목 | 내용 |
+|------|------|
+| 입력 | `output/` 의 산출물 5종 |
+| 출력 | 표준출력 (`--format md` 로 마크다운) |
+| 종료 코드 | `--strict` 지정 시, 검증 실패 항목이 있으면 1 |
+
+집계 항목: 단계별 퍼널, `slang_category`·`difficulty_tier` 분포, 서비스 카테고리 분포,
+허용 어휘 검증, `final_dataset` ↔ `service_public_approved` 카테고리 교차 검증.
+
+### `sync_service_categories.py`
+
+`service_public_{approved,pending}.json` 의 `category` 를 `final_dataset.jsonl` 기준으로
+재동기화한다. 기본 동작은 dry-run이며, 미반영 변경이 있으면 종료 코드 1을 반환한다
+(`--apply` 로 실제 반영).
+
+`category` 필드의 소유자는 `add_korean_definitions.py` 이고 그 출력 대상이
+`final_dataset.jsonl` 이므로, 이 파일을 단일 진실 공급원으로 삼는다.
+
+### 이 도구들로 발견한 결함
+
+**① LLM 응답 스키마 미검증**
+
+`add_korean_definitions.py` 는 허용 카테고리 14개를 프롬프트로만 제약하고 응답을 검증하지
+않았다. 그 결과 목록 밖의 값 4종이 데이터에 섞였다.
+
+| 규정 외 값 | 해당 단어 |
+|------------|-----------|
+| `성·성적 표현` | rubber, hump, poppers |
+| `감각·신체` | batter |
+| `감사·인사` | bless |
+| `스포츠·게임` | wicket |
+
+→ `validate_categories()` 를 추가해 응답 단계에서 허용 어휘를 강제하고, 반복 관측된 값은
+`CATEGORY_ALIASES` 로 흡수했다. 매핑되지 않는 값은 버리고 실행 종료 시 집계를 출력한다.
+
+**② 산출물 간 카테고리 불일치**
+
+`service_public_approved.json` 은 `final_dataset.jsonl` 의 파생본이지만, `--recategorize` 가
+원본에만 적용되면서 두 파일이 어긋났다.
+
+| 비교 대상 | 불일치 |
+|-----------|--------|
+| `service_public_approved.json` (384건) | 209건 (54.4%) |
+| `service_public_pending.json` (2,909건) | 1,650건 (56.7%) |
+
+→ 검증 로직을 넣은 뒤 전체를 한 번에 재분류하고, 파생본을 재동기화했다.
+CI에서 두 스크립트를 실행해 재발을 막는다.
+
+### 단위 테스트
+
+```bash
+python -m pytest tests/ -q
+```
+
+파이프라인 본체는 수백 GB의 외부 데이터를 요구해 통합 테스트가 어렵다. 대신 결과 랭킹을
+좌우하는 순수 함수만 떼어내 검증한다.
+
+- `compute_support_score` — 공식 일치, 음수 입력 클램프, 가중치 대소관계
+- `classify_support` — keep/gray_zone/prune 임계값 경계
+- `compute_priority` — 캡 적용, 미등록 카테고리 기본 신뢰도, 0 나눗셈
+- `is_holdout_included` — 두 조건 동시 충족 여부
+- `get_target_n` / `get_n_max` — tier 경계, **Stage 5와 Stage 6의 tier 표 일치 교차 검증**
+- `validate_categories` / `normalize_categories` — 허용 어휘 강제, 별칭 매핑, 두 구현의 동등성
+
+Stage 5의 수집 목표량과 Stage 6의 소진 상한이 어긋나면 판정이 조용히 조기 종료되므로,
+두 값의 일치를 테스트로 고정했다.
