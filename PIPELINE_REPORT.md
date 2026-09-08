@@ -1,380 +1,577 @@
 # 영어 슬랭 학습 데이터셋 구축 파이프라인 보고서
 
 **작성일**: 2026-05-19  
-**대상 프로젝트**: English-INSSA-DATA-PROJECT  
+**프로젝트**: English-INSSA-DATA-PROJECT  
 **최종 산출물**: `data_pipeline/output/final_dataset.jsonl` (3,293개 단어)
 
 ---
 
 ## 1. 프로젝트 개요
 
-한국인 영어 학습자를 위한 영어 슬랭 학습 앱의 데이터셋을 자동으로 구축하는 파이프라인이다.
+이 프로젝트는 한국인 영어 학습자를 위한 영어 슬랭 학습 데이터셋을 구축하는 파이프라인이다.
 
-**핵심 전략**:
-- Wiktionary에서 슬랭 후보를 추출해 Reddit 댓글 덤프(2025년 9월·12월)에서 실제 사용 빈도를 검증한다.
-- LLM(GPT-4.1-nano)으로 각 후보의 슬랭 여부를 판정하고 대표 영어 정의를 생성한다.
-- 이후 한국어 번역, 예문 생성, 수동 검수를 거쳐 서비스에 투입한다.
+핵심 흐름은 다음과 같다.
 
-**실행 환경**:
-```
+1. Wiktionary에서 슬랭 후보 단어와 영어 정의를 추출한다.
+2. Reddit 댓글 덤프에서 후보 단어의 실제 사용 빈도를 집계한다.
+3. 빈도와 분산 기준으로 후보를 1차 필터링한다.
+4. Stage 6에서 `reddit_slang_llm_judger.py`가 Reddit 실제 문맥을 LLM으로 판정해, 해당 단어가 실제 슬랭/비격식 의미로 쓰였는지 확인한다.
+5. Stage 7에서 Stage 6 결과를 기반으로 최종 우선순위를 계산한다.
+6. 이후 한국어 정의, 서비스 카테고리, 학습용 예문을 추가하고 수동 검수로 공개 단어를 확정한다.
+
+실행 환경:
+
+```bash
 pip install mwparserfromhell zstandard rapidfuzz openai numpy
 export OPENAI_API_KEY=sk-...
-# 실행 위치: English-INSSA-DATA-PROJECT/ 루트
 ```
 
 ---
 
-## 2. 파이프라인 전체 흐름
+## 2. 전체 파이프라인
 
-```
-Wiktionary XML (bz2)
-        │
-  Stage 1: parse_wiktionary.py
-        │ → output/slang_raw.json
-        │
-  Stage 2: parse_slang_raw.py
-        │ + Reddit RC_2025-09.zst, RC_2025-12.zst
-        │ → matched_candidates.json  (실행 디렉터리 기준)
-        │
-  Stage 3: filter_matched_candidates.py
-        │ → data/filtered_candidates.json
-        │
-  Stage 4: rank_slang_candidates.py
-        │ → data/scored_candidates.json  (KEEP 6,423개)
-        │
-  Stage 5: reddit_context_cache_builder.py
-        │ + Reddit RC_2025-09.zst, RC_2025-12.zst
-        │ → candidate_context_cache.jsonl  (~643MB)
-        │
-  Stage 6: reddit_slang_llm_judger.py  [GPT-4.1-nano]
-        │ → output/word_summary.jsonl
-        │
-  Stage 7: rank_final_candidates.py
-        │ → output/ranked_candidates.jsonl  (3,293개)
-        │
-  output/final_dataset.jsonl  ←─────────────────────────────┐
-        │                                                     │
-  [서비스 투입]                                               │
-  add_korean_definitions.py  [GPT-4.1-nano]                  │
-        │ → definition_ko + category 추가 (in-place)  ───────┘
-        │
-  generate_examples.py  [GPT-4.1-nano]
-        │ 입력: output/service_public_approved.json
-        │ → example_en + example_ko 추가 (in-place)
-        │
-  review_tool.py  [수동 검수 CLI]
-        │ 입력: output/service_public_pending.json
-        │ → service_public_approved.json (승인)
-           → service_public_needs_revision.json (수정필요)
+```text
+Stage 1  parse_wiktionary.py
+         -> output/slang_raw.json
+
+Stage 2  parse_slang_raw.py
+         -> matched_candidates.json
+
+Stage 3  filter_matched_candidates.py
+         -> data/filtered_candidates.json
+
+Stage 4  rank_slang_candidates.py
+         -> data/scored_candidates.json
+         -> keep 후보 6,423개
+
+Stage 5  reddit_context_cache_builder.py
+         -> candidate_context_cache.jsonl
+         -> 후보별 Reddit 실제 문맥 수집
+
+Stage 6  reddit_slang_llm_judger.py
+         -> output/word_summary.jsonl
+         -> LLM으로 문맥별 슬랭 여부 판정
+         -> 영어 슬랭 정의와 slang_category 생성
+
+Stage 7  rank_final_candidates.py
+         -> output/ranked_candidates.jsonl
+         -> Stage 6 수치 기반 최종 우선순위 계산
+
+후처리  add_korean_definitions.py
+         -> final_dataset.jsonl에 definition_ko, category 추가
+
+후처리  review_tool.py
+         -> service_public_approved.json / service_public_pending.json
+
+후처리  generate_examples.py
+         -> 승인 단어에 example_en, example_ko 추가
 ```
 
 ---
 
-## 3. 각 단계 상세
+## 3. 단계별 설명
 
-### Stage 1 — `parse_wiktionary.py`
+### Stage 1: `parse_wiktionary.py`
 
-**목적**: Wiktionary XML에서 슬랭 정의가 있는 영어 단어 추출
+**역할**: Wiktionary XML에서 영어 슬랭 후보를 추출한다.
 
-| 항목 | 내용 |
-|------|------|
-| 입력 | `data_pipeline/dump/enwiktionary-20250920-pages-articles-multistream.xml.bz2` |
-| 출력 | `data_pipeline/output/slang_raw.json` |
+입력:
 
-**알고리즘**:
-- `ElementTree.iterparse`로 bz2 XML을 스트리밍 처리 (메모리 전체 적재 없음)
-- `==English==` 섹션만 정규식으로 추출 (다국어 항목 제외)
-- `#` 정의 라인의 라벨(`{{lb|en|...}}`, `{{context|...}}`, `(slang)` 등)에서 아래 TARGET_LABELS 매칭:
-  ```
-  {"slang", "internet slang", "internet", "aave", "informal", "colloquial"}
-  ```
-- 예문은 `{{ux|en|...}}` / `{{usex|en|...}}` 우선, 없으면 위키코드 제거 후 원문 사용
-- 출력 필드: `word`, `definition_en`, `definition_ko`(빈값), `example_en`, `example_ko`(빈값), `source_label`, `service_category`(빈값)
+- `data_pipeline/dump/enwiktionary-20250920-pages-articles-multistream.xml.bz2`
 
----
+출력:
 
-### Stage 2 — `parse_slang_raw.py`
+- `data_pipeline/output/slang_raw.json`
 
-**목적**: Reddit 댓글 덤프 전수 스캔으로 후보 단어별 실제 사용 횟수 집계
+처리 방식:
 
-| 항목 | 내용 |
-|------|------|
-| 입력 | `data_pipeline/output/slang_raw.json` + Reddit `.zst` 2개 파일 |
-| 출력 | `matched_candidates.json`, `unmatched_candidates.json`, `candidate_usage_stats.json` (실행 디렉터리 기준 상대경로) |
+- `ElementTree.iterparse`로 bz2 XML을 스트리밍 처리한다.
+- `==English==` 섹션만 대상으로 한다.
+- 정의 라인의 라벨에서 `slang`, `internet slang`, `internet`, `aave`, `informal`, `colloquial` 등을 감지한다.
+- 후보 단어, 영어 정의, 예문, 원본 라벨을 저장한다.
 
-**알고리즘**:
-- 후보 단어를 토큰 길이별 `ngram_index[n]` dict로 구성
-- `.zst` 파일을 스트리밍으로 읽어 JSONL 한 줄씩 파싱
-- 댓글 body를 토큰화 → n-gram 슬라이딩 윈도우로 후보 단어 매칭
-- 단어별 `match_count`, `source_files`, `subreddits`(최대 20개 샘플) 누적
-- 정규화: 타이포그래피 따옴표·대시 표준화 후 토큰화
+### Stage 2: `parse_slang_raw.py`
 
-> **경로 주의**: 출력 파일이 실행 디렉터리 기준 상대경로로 하드코딩되어 있어, Stage 3의 기본 입력 경로(`data_pipeline/data/matched_candidates.json`)와 불일치한다. 실제 실행 시 파일을 수동으로 이동하거나 Stage 3의 `--input` 인자를 지정해야 한다.
+**역할**: Reddit 댓글 덤프에서 후보 단어의 실제 등장 횟수를 집계한다.
 
----
+입력:
 
-### Stage 3 — `filter_matched_candidates.py`
+- `data_pipeline/output/slang_raw.json`
+- Reddit comments `.zst` 파일 2개
 
-**목적**: 통계 기반 1차 필터링으로 명백한 비슬랭·저빈도 단어 제거
+출력:
 
-| 항목 | 내용 |
-|------|------|
-| 입력 | `data_pipeline/data/matched_candidates.json` (기본값, `--input`으로 변경 가능) |
-| 출력 | `data_pipeline/data/filtered_candidates.json`, `dropped_candidates.json`, `filter_summary.json` |
+- `matched_candidates.json`
+- `unmatched_candidates.json`
+- `candidate_usage_stats.json`
 
-**필터 조건** (그룹 max match_count 기준, 조건 중 하나라도 해당 시 drop):
+처리 방식:
 
-| 조건 | 기준 |
-|------|------|
-| `not_matched` | Reddit 매칭 이력 없음 |
-| `stopword_only` | 모든 토큰이 영어 stopword (~130개) |
-| `function_phrase_blacklist` | 멀티워드 구문이 18개 기능어 구문 블랙리스트에 해당 |
-| `low_match_count` | 그룹 match_count ≤ 200 (기본값, `--match-threshold`로 변경 가능) |
+- 후보 단어를 n-gram 인덱스로 구성한다.
+- Reddit JSONL을 zstandard 스트리밍으로 읽는다.
+- 댓글 body를 토큰화하고 후보 n-gram과 매칭한다.
+- 단어별 `match_count`, 등장 subreddit 샘플 등을 누적한다.
 
-- Safelist에 등록된 단어는 모든 필터 무시
-- `--disable-function-phrase-blacklist` 옵션 제공
+### Stage 3: `filter_matched_candidates.py`
 
----
+**역할**: 통계 기반 1차 필터링으로 명백한 비슬랭 또는 너무 낮은 빈도 후보를 제거한다.
 
-### Stage 4 — `rank_slang_candidates.py`
+출력:
 
-**목적**: 후보 단어에 Reddit 사용 빈도 기반 support_score 산정 및 3단계 분류
+- `data_pipeline/data/filtered_candidates.json`
+- `data_pipeline/data/dropped_candidates.json`
+- `data_pipeline/data/filter_summary.json`
 
-| 항목 | 내용 |
-|------|------|
-| 입력 | `data_pipeline/data/filtered_candidates.json` |
-| 출력 | `data_pipeline/data/scored_candidates.json` |
+주요 제거 조건:
 
-**점수 공식**:
+- Reddit 매칭 이력이 없는 후보
+- stopword만으로 구성된 후보
+- 기능어 구문 블랙리스트에 해당하는 후보
+- 기본 기준 `match_count < 200`
+
+### Stage 4: `rank_slang_candidates.py`
+
+**역할**: Reddit 사용량 기반 support score를 계산하고 Stage 5 이후 처리 대상을 고른다.
+
+출력:
+
+- `data_pipeline/data/scored_candidates.json`
+
+점수식:
+
+```text
+support_score = 0.6 * log10(1 + match_count)
+              + 0.4 * log10(1 + subreddit_count)
 ```
-support_score = 0.6 × log10(1 + match_count) + 0.4 × log10(1 + subreddit_count)
-```
-- `match_count`, `subreddit_count`는 같은 normalized_word 내 sense들의 **max** 사용 (sum 아님)
 
-**분류 기준**:
+분류 기준:
 
-| 레이블 | support_score |
-|--------|--------------|
-| `keep` | ≥ 3.65 |
-| `gray_zone` | 3.20 이상 3.65 미만 |
-| `prune` | 3.20 미만 |
+| label | 기준 |
+|---|---:|
+| `keep` | `support_score >= 3.65` |
+| `gray_zone` | `3.20 <= support_score < 3.65` |
+| `prune` | `support_score < 3.20` |
 
-→ `keep` 6,423개가 이후 단계 처리 대상
+Stage 5 이후에는 `keep` 후보 6,423개만 사용한다.
 
----
+### Stage 5: `reddit_context_cache_builder.py`
 
-### Stage 5 — `reddit_context_cache_builder.py`
+**역할**: Stage 6 LLM 판정을 위해 후보 단어별 Reddit 실제 문맥을 수집한다.
 
-**목적**: LLM 판정을 위한 단어별 Reddit 문맥(실제 사용 예문) 수집
+입력:
 
-| 항목 | 내용 |
-|------|------|
-| 입력 | `data_pipeline/data/scored_candidates.json` (`keep` 항목만) + Reddit `.zst` 2개 |
-| 출력 | `data_pipeline/candidate_context_cache.jsonl` (~643MB), `candidate_context_summary.jsonl` |
+- `data_pipeline/data/scored_candidates.json`
+- Reddit comments `.zst` 파일 2개
 
-**문맥 수집 목표 수 (match_count 기준)**:
+출력:
+
+- `data_pipeline/candidate_context_cache.jsonl`
+- `data_pipeline/candidate_context_summary.jsonl`
+
+후보별 목표 문맥 수:
 
 | match_count | target_n |
-|-------------|----------|
-| < 10,000 | 100 |
-| 10,000 ~ 50,000 | 120 |
-| 50,000 ~ 200,000 | 140 |
-| 200,000 ~ 1,000,000 | 160 |
-| > 1,000,000 | 200 |
+|---:|---:|
+| `< 10,000` | 100 |
+| `10,000 ~ 50,000` | 120 |
+| `50,000 ~ 200,000` | 140 |
+| `200,000 ~ 1,000,000` | 160 |
+| `> 1,000,000` | 200 |
 
-**알고리즘**:
-- 2개 `.zst` 파일을 각각 별도 `multiprocessing.Process`로 **동시** 스캔
-- Reservoir Sampling (Knuth's algorithm, `RANDOM_SEED=42`)으로 단어별 target_n개 무작위 수집
-- 1-gram 매칭 시 `(?<![a-zA-Z0-9])word(?!-[a-zA-Z0-9]|[a-zA-Z0-9])` 패턴으로 복합어 오매칭 방지
-  - 예: "fire-fighter"에서 "fire" 오매칭 차단
-- 두 워커 결과를 `context_id`(SHA-256 해시) 기반 중복 제거 후 병합, 최종 target_n으로 재샘플링
-- 모든 단어가 target_n 도달 시 조기 종료
+처리 방식:
 
----
-
-### Stage 6 — `reddit_slang_llm_judger.py`
-
-**목적**: 수집된 Reddit 문맥을 LLM으로 판정해 슬랭 여부 결정 및 영어 정의 생성
-
-| 항목 | 내용 |
-|------|------|
-| 입력 | `data_pipeline/data/scored_candidates.json` + `data_pipeline/candidate_context_cache.jsonl` |
-| 출력 | `data_pipeline/output/word_summary.jsonl` |
-| 모델 | `gpt-4.1-nano` (env `OPENAI_MODEL`로 변경 가능) |
-
-**단어별 판정 흐름 (`process_word`)**:
-
-```
-캐시 문맥 수 < 60개 → decision = "drop" (insufficient_contexts)
-
-초기 N0 = 60개 배치 LLM 판정
-    K = 슬랭 판정 수
-    ├─ K == 0   → decision = "drop"
-    ├─ K >= 15  → decision = "enough_evidence"
-    └─ 0 < K < 15 → 20개씩 추가 배치 반복
-                     ├─ K >= 15 도달 → decision = "enough_evidence"
-                     └─ n_max 소진   → decision = "holdout"
-```
-
-**n_max** (match_count 기준, Stage 5의 target_n과 동일한 tier):
-`<10K→100, 10K~50K→120, 50K~200K→140, 200K~1M→160, >1M→200`
-
-**핵심 설계**:
-- 재실행 시 `decision == "drop"` 항목은 skip (drop 결과 보존)
-- 판정 결과를 `word_summary.jsonl`에 즉시 flush (중단 후 재시작 지원)
-- 슬랭 판정 문맥 텍스트(최대 8개, 각 300자 이하)로 `generate_definition` 호출 → `definition_en`, `slang_category` 생성
-- `slang_category` 유효값: `internet_slang`, `aave`, `general_slang`, `colloquial`
-
-**예시 — "cap" drop 사유**: 60개 문맥 전체가 "market cap", "salary cap" 등 비슬랭 용법이어서 K=0 → drop
+- Reddit `.zst` 파일 2개를 각각 별도 프로세스로 병렬 스캔한다.
+- 후보 단어가 포함된 댓글 문맥을 수집한다.
+- Reservoir Sampling, seed 42를 사용해 단어별 문맥 수를 제한한다.
+- `context_id` 해시 기준으로 중복 문맥을 제거한다.
 
 ---
 
-### Stage 7 — `rank_final_candidates.py`
+## 4. Stage 6: `reddit_slang_llm_judger.py`
 
-**목적**: LLM 판정 결과를 바탕으로 최종 우선순위 점수 산정 및 랭킹
+**Stage 6의 핵심 역할은 `reddit_slang_llm_judger.py`가 수행한다.**  
+이 단계는 Stage 5에서 모은 Reddit 문맥을 LLM으로 판정해, 후보 단어가 실제로 슬랭 또는 비격식 의미로 쓰였는지 확인한다.
 
-| 항목 | 내용 |
-|------|------|
-| 입력 | `data_pipeline/output/word_summary.jsonl` |
-| 출력 | `data_pipeline/output/ranked_candidates.jsonl` (3,293개) |
+### 입력과 출력
 
-**사전 필터**:
-- `decision == "drop"` → 제외
-- `decision == "holdout"` → `slang_hits >= 3` AND `slang_ratio >= 1.67%` 미충족 시 추가 제외
+입력:
 
-**우선순위 점수 공식**:
+- `data_pipeline/data/scored_candidates.json`
+- `data_pipeline/candidate_context_cache.jsonl`
+
+출력:
+
+- `data_pipeline/output/word_summary.jsonl`
+- `data_pipeline/output/context_judgments.jsonl`
+
+모델:
+
+- 기본값: `gpt-4.1-nano`
+- 환경변수 `OPENAI_MODEL`로 변경 가능
+- `temperature=0`
+- JSON 응답 강제
+
+### Stage 6 처리 로직
+
+단어별 처리 흐름:
+
+```text
+1. Stage 4의 keep 후보만 로드한다.
+2. Stage 5에서 수집한 Reddit 문맥을 단어별로 가져온다.
+3. 문맥이 60개 미만이면 drop 처리한다.
+4. 초기 60개 문맥을 LLM으로 판정한다.
+5. 슬랭 판정 수 K가 0이면 drop 처리한다.
+6. K가 15 이상이면 enough_evidence 처리한다.
+7. 0 < K < 15이면 문맥을 20개씩 추가 판정한다.
+8. 최대 문맥 수까지 확인한 뒤:
+   - K >= 15이면 enough_evidence
+   - K < 15이면 holdout
+9. 슬랭으로 판정된 문맥만 모아 영어 정의와 slang_category를 생성한다.
 ```
+
+상수:
+
+| 이름 | 값 | 의미 |
+|---|---:|---|
+| `N0` | 60 | 최초 판정 문맥 수 |
+| `BATCH_SIZE` | 20 | 추가 판정 배치 크기 |
+| `K_TARGET` | 15 | 충분한 슬랭 근거 기준 |
+| `API_MAX_RETRIES` | 5 | API 재시도 횟수 |
+
+`n_max` 기준:
+
+| match_count | n_max |
+|---:|---:|
+| `< 10,000` | 100 |
+| `10,000 ~ 50,000` | 120 |
+| `50,000 ~ 200,000` | 140 |
+| `200,000 ~ 1,000,000` | 160 |
+| `> 1,000,000` | 200 |
+
+### Stage 6 결과 해석
+
+| decision | 의미 |
+|---|---|
+| `drop` | 문맥 부족 또는 초기 60개에서 슬랭 사용 0건 |
+| `enough_evidence` | 슬랭 판정이 15건 이상으로 충분함 |
+| `holdout` | 일부 슬랭 근거는 있으나 15건에는 도달하지 못함 |
+
+실제 결과:
+
+| 항목 | 개수 |
+|---|---:|
+| Stage 6 전체 후보 | 6,423 |
+| `drop` | 3,085 |
+| `enough_evidence` | 2,412 |
+| `holdout` | 926 |
+
+---
+
+## 5. Stage 7: `rank_final_candidates.py`
+
+**역할**: Stage 6 결과를 기반으로 최종 학습 우선순위를 계산한다.  
+Stage 7에서는 AI를 새로 호출하지 않는다.
+
+입력:
+
+- `data_pipeline/output/word_summary.jsonl`
+
+출력:
+
+- `data_pipeline/output/ranked_candidates.jsonl`
+
+필터 조건:
+
+- `decision == "drop"`은 제외한다.
+- `decision == "holdout"`은 `slang_hits >= 3`이고 `slang_ratio >= 1.67%`인 경우만 포함한다.
+
+점수식:
+
+```text
 slang_ratio     = slang_hits / sampled
-expected_capped = min(match_count × slang_ratio, 3,000,000)
+raw_expected    = match_count * slang_ratio
+expected_capped = min(raw_expected, 3,000,000)
 
-cat_conf = CATEGORY_CONF[slang_category]
-           internet_slang / aave  → 1.0
-           general_slang          → 0.85
-           colloquial             → 0.65
-           그 외 / None           → 0.5
+cat_conf:
+  internet_slang = 1.0
+  aave           = 1.0
+  general_slang  = 0.85
+  colloquial     = 0.65
+  unknown        = 0.5
 
-cat_penalty     = (1 - cat_conf) × 0.4
-penalty         = min(0.95, cat_penalty × (1 - slang_ratio))
-priority_score  = log10(1 + expected_capped) × (1 - penalty)
+cat_penalty    = (1 - cat_conf) * 0.4
+penalty        = min(0.95, cat_penalty * (1 - slang_ratio))
+priority_score = log10(1 + expected_capped) * (1 - penalty)
 ```
 
-- `is_vulgar` 플래그: 16개 명시적 비속어 목록 기반
-- 출력 필드: `normalized_word`, `rank`, `priority_score`, `slang_category`, `slang_hits`, `slang_ratio`, `match_count`, `is_vulgar`, `holdout_included`
+최종 출력:
+
+- `output/ranked_candidates.jsonl`: 3,293개
 
 ---
 
-## 4. 서비스 투입 스크립트
-
-Stage 1–7은 데이터셋 최초 구축 시 1회 실행 완료. 아래 스크립트는 반복 실행 가능하다.
+## 6. 후처리 및 서비스 데이터 구성
 
 ### `add_korean_definitions.py`
 
-**목적**: `final_dataset.jsonl`에 `definition_ko`(한국어 정의) + `category`(서비스용 카테고리) 추가
+**역할**: `final_dataset.jsonl`에 한국어 정의와 서비스 카테고리를 추가한다.
 
-| 항목 | 내용 |
-|------|------|
-| 입력/출력 | `data_pipeline/output/final_dataset.jsonl` (in-place) |
-| 모델 | `gpt-4.1-nano`, 배치 20개, temperature=0 |
+입력/출력:
 
-**14개 카테고리**:
-칭찬·인정, 긍정·동의, 감탄·놀람, 강조 표현, 일상 대화, SNS·인터넷 반응, 줄임말·약어, 감정 표현, 비판·부정 반응, 관계·연애, 유머·밈, 게임·커뮤니티, 돈·라이프스타일, 주의/거친 표현
+- `data_pipeline/output/final_dataset.jsonl` in-place 업데이트
 
-**실행 옵션**:
-```bash
-python data_pipeline/add_korean_definitions.py             # definition_ko + category 신규 생성
-python data_pipeline/add_korean_definitions.py --recategorize  # category만 재분류 (definition_ko 유지)
+AI 사용:
+
+- 영어 정의를 자연스러운 한국어 정의로 번역
+- 서비스용 카테고리 1~3개 선택
+- `--recategorize` 실행 시 카테고리만 재분류
+
+서비스 카테고리:
+
+```text
+친근·호칭, 긍정·동의, 감탄·반응, 강조 표현,
+일상 대화, SNS·인터넷 반응, 줄임말·약어, 감정 표현,
+비판·부정 반응, 관계·연애, 유머·밈, 게임·커뮤니티,
+애니·라이프스타일, 주의/거친 표현
 ```
-
-- 이미 처리된 단어(`definition_ko` + `category` 모두 있음)는 자동 스킵
-- 카테고리는 1~3개 배열, 관련도 높은 순서로 반환
-
----
-
-### `generate_examples.py`
-
-**목적**: 검수 완료 단어에 학습자용 예문(`example_en`, `example_ko`) 생성
-
-| 항목 | 내용 |
-|------|------|
-| 입력/출력 | `data_pipeline/output/service_public_approved.json` (in-place) |
-| 체크포인트 | `data_pipeline/output/example_gen_progress.jsonl` (append) |
-| 모델 | `gpt-4.1-nano`, 배치 20개, temperature=0 |
-
-**예문 제약**: 1문장, 20단어 이하, 비속어/성적/폭력 내용 금지
-
-```bash
-python data_pipeline/generate_examples.py          # 미처리 단어만 이어서 생성
-python data_pipeline/generate_examples.py --reset  # 처음부터 재생성
-```
-
----
 
 ### `review_tool.py`
 
-**목적**: 서비스 투입 후보 단어 수동 검수 CLI
+**역할**: 공개 후보 단어를 사람이 최종 승인/보류/수정 필요로 검수한다.
 
-| 항목 | 내용 |
-|------|------|
-| 입력 | `data_pipeline/output/service_public_pending.json` |
-| 출력 | `service_public_approved.json` / `service_public_needs_revision.json` |
-| 체크포인트 | `data_pipeline/output/review_progress.jsonl` (append) |
+출력:
 
-**검수 키**:
+- `data_pipeline/output/service_public_approved.json`
+- `data_pipeline/output/service_public_pending.json`
+- `data_pipeline/output/service_public_needs_revision.json`
 
-| 키 | 동작 |
-|----|------|
-| `1` | 승인 → `service_public_approved.json` |
-| `2` | 보류 → pending에 유지 |
-| `3` | 수정필요 → `service_public_needs_revision.json` |
-| `s` | 저장 |
-| `q` | 저장 후 종료 |
+AI 사용:
 
-- 결정마다 즉시 flush (중단 후 재시작 안전)
-- `--reset` 옵션으로 progress 초기화 후 재검수 가능
+- 없음
 
----
+### `generate_examples.py`
 
-## 5. 최종 데이터셋 현황
+**역할**: 수동 승인된 단어에 학습용 영어 예문과 한국어 번역을 생성한다.
 
-| 파일 | 단어 수 | 용도 |
-|------|---------|------|
-| `output/final_dataset.jsonl` | 3,293 | 전체 후보 (definition_ko + category 포함) |
-| `output/db_insert.json` | 3,293 | DB INSERT용 (final_dataset.jsonl 후처리 산출물) |
-| `output/service_public_approved.json` | 384 | **최종 서비스 투입 단어** (수동 검수 완료) |
-| `output/service_public_pending.json` | 2,909 | 보류 (추가 검토 필요) |
+입력/출력:
 
-**difficulty_tier 기준** (rank 기반, final_dataset.jsonl 내 필드):
-- `essential`: rank 1–200
-- `common`: rank 201–700
-- `supplemental`: rank 701+
+- `data_pipeline/output/service_public_approved.json` in-place 업데이트
+- 진행 체크포인트: `data_pipeline/output/example_gen_progress.jsonl`
 
-**서비스 투입 단어 필드**:
-`word`, `definition_en`, `definition_ko`, `example_en`, `example_ko`, `category`, `emoji`, `shorts_url`
+AI 사용:
+
+- 승인 단어별 `example_en`, `example_ko` 생성
 
 ---
 
-## 6. 주요 설계 결정사항
+## 7. 최종 산출물 현황
 
-### Reddit 문맥 수집에 Reservoir Sampling 사용
-전체 수억 개 댓글을 스트리밍 처리하면서 단어별 고정 개수(최대 200개)를 균등 확률로 샘플링하기 위해 Knuth's Algorithm을 사용했다. 전체를 메모리에 적재하지 않고도 편향 없는 샘플을 얻을 수 있다.
-
-### LLM 판정 기준: 60개 초기 배치 + K_TARGET=15
-60개 문맥을 한 번에 보내 슬랭 판정을 받는 방식을 택했다. 60개 중 슬랭 판정이 0개(K=0)면 즉시 drop해 API 비용을 절감하고, 15개 이상이면 충분한 증거로 보아 추가 호출을 하지 않는다. 중간값(1~14개)은 20개씩 추가 배치를 반복한다.
-
-### Category Confidence로 슬랭 순도 보정
-Reddit match_count만으로 랭킹하면 slang 아닌 일반어가 상위에 오를 수 있다. slang_category별 신뢰도(`internet_slang/aave=1.0`, `colloquial=0.65` 등)를 penalty에 반영해 "명확한 슬랭"을 우선 배치한다.
-
-### Drop 결과 보존
-Stage 6에서 `decision=drop`으로 판정된 단어는 재실행 시 skip한다. 수억 건의 Reddit 문맥을 다시 보는 비용을 방지하고, 판정 결과의 일관성을 유지한다.
+| 파일 | 개수 | 설명 |
+|---|---:|---|
+| `output/word_summary.jsonl` | 6,423 | Stage 6 LLM 판정 결과 |
+| `output/ranked_candidates.jsonl` | 3,293 | Stage 7 최종 후보 |
+| `output/final_dataset.jsonl` | 3,293 | 한국어 정의와 카테고리 포함 전체 데이터 |
+| `output/db_insert.json` | 3,293 | DB 삽입용 변환 결과 |
+| `output/service_public_approved.json` | 384 | 수동 검수 후 서비스 공개 승인 |
+| `output/service_public_pending.json` | 2,909 | 추가 검수 보류 |
 
 ---
 
-## 7. 하드코딩 경로
+## 8. AI 사용 내역
 
+| 단계 | 스크립트 | AI 사용 여부 | AI 역할 |
+|---|---|---|---|
+| Stage 1 | `parse_wiktionary.py` | 없음 | 규칙 기반 Wiktionary 파싱 |
+| Stage 2 | `parse_slang_raw.py` | 없음 | Reddit 빈도 집계 |
+| Stage 3 | `filter_matched_candidates.py` | 없음 | 규칙 기반 필터링 |
+| Stage 4 | `rank_slang_candidates.py` | 없음 | 통계 점수 계산 |
+| Stage 5 | `reddit_context_cache_builder.py` | 없음 | Reddit 문맥 수집 |
+| Stage 6 | `reddit_slang_llm_judger.py` | 있음 | 문맥별 슬랭 판정, 영어 정의 생성, slang_category 생성 |
+| Stage 7 | `rank_final_candidates.py` | 없음 | Stage 6 결과 기반 점수 계산 |
+| 후처리 | `add_korean_definitions.py` | 있음 | 한국어 정의 번역, 서비스 카테고리 생성/재분류 |
+| 후처리 | `generate_examples.py` | 있음 | 학습용 영어 예문과 한국어 번역 생성 |
+| 후처리 | `review_tool.py` | 없음 | 수동 검수 |
+
+---
+
+## 9. 공개 프롬프트
+
+아래는 Stage 6 이후 AI를 사용한 모든 프롬프트 템플릿이다. `{word}`, `{definition_en}`, `{context_text}` 등은 실행 시 실제 값으로 대체된다.
+
+### 9.1 Stage 6 문맥별 슬랭 판정 프롬프트
+
+사용 위치:
+
+- `reddit_slang_llm_judger.py`
+- `CLASSIFY_SYSTEM_PROMPT`
+- `build_classify_prompt`
+
+System prompt:
+
+```text
+You are a slang usage classifier with broad knowledge of contemporary English slang. For each Reddit context, decide if the target word is used in a slang or informal sense based on your own knowledge. Reply with JSON only.
 ```
+
+User prompt template:
+
+```text
+Word: "{word}"
+
+Reddit contexts:
+[1] {context_text_1}
+
+[2] {context_text_2}
+
+...
+
+For each context [1]~[{n}]:
+- is_slang: true if the word is used in a slang, casual, or informal sense
+
+Return JSON only: {"results": [{"is_slang": true}, ...]}
+```
+
+### 9.2 Stage 6 영어 정의 및 slang_category 생성 프롬프트
+
+사용 위치:
+
+- `reddit_slang_llm_judger.py`
+- `GENERATE_DEF_SYSTEM_PROMPT`
+- `build_definition_prompt`
+
+System prompt:
+
+```text
+You are an expert English slang lexicographer for a Korean language-learning app. Based on the Reddit examples provided, write a concise slang definition (1-2 sentences) and categorize the slang type. Focus on the SLANG or informal meaning only. If examples are ambiguous, use your own knowledge of contemporary English slang. Reply with JSON only.
+```
+
+User prompt template:
+
+```text
+Word: "{word}"
+Slang usage rate: {slang_ratio:.0%} in Reddit
+
+Reddit examples (slang usage only):
+[1] {slang_context_1}
+[2] {slang_context_2}
+...
+
+Write a concise slang definition for "{word}" based strictly on the examples above.
+Also categorize: "internet_slang" (memes/online), "aave" (African American Vernacular), "general_slang" (common spoken slang), or "colloquial" (informal but not typical slang).
+Return JSON only: {"definition_en": "...", "slang_category": "internet_slang|aave|general_slang|colloquial"}
+```
+
+### 9.3 한국어 정의 및 서비스 카테고리 생성 프롬프트
+
+사용 위치:
+
+- `add_korean_definitions.py`
+- `SYSTEM_PROMPT`
+- `USER_TEMPLATE`
+
+System prompt:
+
+```text
+You are a Korean-English bilingual dictionary editor for a language learning app targeting Korean adults. For each slang word, do two things:
+1. Translate the English definition to natural, concise Korean (1-2 sentences max).
+2. Pick the best category from this list: "친근·호칭", "긍정·동의", "감탄·반응", "강조 표현", "일상 대화", "SNS·인터넷 반응", "줄임말·약어", "감정 표현", "비판·부정 반응", "관계·연애", "유머·밈", "게임·커뮤니티", "애니·라이프스타일", "주의/거친 표현"
+
+Rules for translation:
+- Use Korean only (no English unless the slang term itself is kept).
+- Capture the SLANG meaning, not the literal dictionary meaning.
+- Do NOT explain etymology or origin.
+
+Rules for category:
+- Choose 1 to 3 categories from the provided list (most relevant first).
+- Return as a JSON array, e.g. ["긍정·동의", "일상 대화"].
+- Base it on how the word is actually used, not its literal meaning.
+```
+
+User prompt template:
+
+```text
+Process these slang words. Return JSON: {"results": [{"word": "...", "definition_ko": "...", "category": ["...", "..."]}, ...]}
+
+- word: "{word_1}", definition_en: "{definition_en_1}"
+- word: "{word_2}", definition_en: "{definition_en_2}"
+...
+```
+
+### 9.4 서비스 카테고리 재분류 프롬프트
+
+사용 위치:
+
+- `add_korean_definitions.py --recategorize`
+- `RECATEGORIZE_SYSTEM`
+- `RECATEGORIZE_TMPL`
+
+System prompt:
+
+```text
+You are a categorization expert for a Korean English slang learning app. For each slang word, pick the best category from this list: "친근·호칭", "긍정·동의", "감탄·반응", "강조 표현", "일상 대화", "SNS·인터넷 반응", "줄임말·약어", "감정 표현", "비판·부정 반응", "관계·연애", "유머·밈", "게임·커뮤니티", "애니·라이프스타일", "주의/거친 표현"
+
+Rules:
+- Choose 1 to 3 categories (most relevant first).
+- Return as a JSON array.
+- '줄임말·약어': the word is formed from initials or shortened letters of a phrase. Check the definition - if it says 'acronym for', 'stands for', or spells out a full phrase (like 'Greatest Of All Time', 'Fear Of Missing Out'), include '줄임말·약어'.
+- Always pair '줄임말·약어' with a meaning-based category.
+- Regular slang words that are NOT abbreviations (sus, cap, rizz, slay) do NOT get '줄임말·약어'.
+```
+
+User prompt template:
+
+```text
+Categorize these slang words. Return JSON: {"results": [{"word": "...", "category": ["...", "..."]}, ...]}
+
+- word: "{word_1}", definition_en: "{definition_en_1}"
+- word: "{word_2}", definition_en: "{definition_en_2}"
+...
+```
+
+### 9.5 학습용 예문 생성 프롬프트
+
+사용 위치:
+
+- `generate_examples.py`
+- `SYSTEM_PROMPT`
+- `USER_TEMPLATE`
+
+System prompt:
+
+```text
+You are a language learning content editor for Korean adults learning English slang.
+For each slang word, generate:
+1. One natural, everyday conversational English example sentence (1 sentence, under 20 words)
+   - Casual context: texting friends, hanging out, social media comment
+   - No profanity, no sexual content, no violent content
+   - The slang word must appear in the sentence
+   - The context must clearly show the slang's meaning
+2. A natural Korean translation of that sentence (not literal - match the feeling and tone)
+
+Return JSON: {"results": [{"word": "...", "example_en": "...", "example_ko": "..."}, ...]}
+```
+
+User prompt template:
+
+```text
+Process these slang words. Return JSON: {"results": [{"word": "...", "example_en": "...", "example_ko": "..."}]}
+
+- word: "{word_1}", definition_en: "{definition_en_1}", definition_ko: "{definition_ko_1}", category: ["{category_1}"]
+- word: "{word_2}", definition_en: "{definition_en_2}", definition_ko: "{definition_ko_2}", category: ["{category_2}"]
+...
+```
+
+---
+
+## 10. 발표용 요약
+
+Stage 6의 `reddit_slang_llm_judger.py`는 이 파이프라인에서 AI가 처음 핵심 판정에 쓰이는 단계다. 이 단계에서 Reddit 실제 문맥을 LLM으로 문맥별 판정해 후보 단어가 실제 슬랭/비격식 의미로 쓰이는지 확인했고, 슬랭으로 확인된 문맥을 바탕으로 영어 정의와 슬랭 유형을 생성했다. 이후 Stage 7은 AI를 추가 호출하지 않고 Stage 6 결과를 수치화해 최종 우선순위를 계산했으며, 서비스용 한국어 정의와 예문 생성에는 별도 고정 프롬프트를 사용했다.
+
+---
+
+## 11. 하드코딩 경로
+
+```text
 C:\Users\User\Downloads\reddit\comments\RC_2025-09.zst
 C:\Users\User\Downloads\reddit\comments\RC_2025-12.zst
 data_pipeline/dump/enwiktionary-20250920-pages-articles-multistream.xml.bz2
 ```
-
-Stage 2 출력 경로(`matched_candidates.json` 등)는 실행 디렉터리 기준 상대경로로 하드코딩되어 있으므로, Stage 3 실행 시 `--input` 인자로 실제 경로를 명시해야 한다.
