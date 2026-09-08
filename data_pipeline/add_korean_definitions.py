@@ -19,6 +19,7 @@ import argparse
 import json
 import os
 import time
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -37,6 +38,49 @@ CATEGORIES_KO = [
     "비판·부정 반응", "관계·연애", "유머·밈", "게임·커뮤니티",
     "돈·라이프스타일", "주의/거친 표현",
 ]
+CATEGORY_SET = set(CATEGORIES_KO)
+
+# LLM 이 반복적으로 만들어낸 허용 어휘 밖의 값 → 허용 어휘 매핑.
+# 프롬프트로만 제약하면 소수가 새어 나오므로 응답 단계에서 흡수한다.
+CATEGORY_ALIASES = {
+    "성·성적 표현": "주의/거친 표현",
+    "감각·신체": "주의/거친 표현",
+    "감사·인사": "일상 대화",
+    "스포츠·게임": "게임·커뮤니티",
+    "격려·응원": "강조 표현",
+    "인터넷 반응": "SNS·인터넷 반응",  # 재분류 실행 중 관측된 절단 형태
+}
+
+# 검증 과정에서 버려진 값 집계 (실행 종료 시 리포트)
+REJECTED_CATEGORIES: Counter = Counter()
+
+
+def validate_categories(word: str, cats: Any) -> list[str]:
+    """LLM 이 반환한 category 를 허용 어휘로 강제한다.
+
+    프롬프트에 목록을 넣어도 모델이 목록 밖의 값을 만들어내므로, 응답을 그대로 신뢰하지 않는다.
+    별칭은 매핑하고, 매핑도 안 되는 값은 버린 뒤 REJECTED_CATEGORIES 에 기록한다.
+    순서는 유지하고 중복은 제거하며, 최대 3개로 자른다.
+    """
+    if not isinstance(cats, list):
+        REJECTED_CATEGORIES[repr(cats)] += 1
+        return []
+
+    out: list[str] = []
+    for c in cats:
+        if not isinstance(c, str):
+            REJECTED_CATEGORIES[repr(c)] += 1
+            continue
+        c = c.strip()
+        mapped = CATEGORY_ALIASES.get(c, c)
+        if mapped not in CATEGORY_SET:
+            REJECTED_CATEGORIES[c] += 1
+            continue
+        if mapped not in out:
+            out.append(mapped)
+    if not out:
+        print(f"  [WARN] {word}: 유효한 category 없음 (원본={cats})")
+    return out[:3]
 
 SYSTEM_PROMPT = (
     "You are a Korean-English bilingual dictionary editor for a language learning app targeting Korean adults. "
@@ -111,7 +155,7 @@ def call_llm(client: OpenAI, batch: list[dict]) -> dict[str, dict]:
             return {
                 r["word"]: {
                     "definition_ko": r.get("definition_ko", ""),
-                    "category": r.get("category"),
+                    "category": validate_categories(r["word"], r.get("category")),
                 }
                 for r in results if "word" in r and r.get("definition_ko")
             }
@@ -157,7 +201,10 @@ def call_llm_recategorize(client: OpenAI, batch: list[dict]) -> dict[str, list]:
             content = resp.choices[0].message.content or ""
             payload = json.loads(content)
             results = payload.get("results", [])
-            return {r["word"]: r.get("category", []) for r in results if "word" in r}
+            return {
+                r["word"]: validate_categories(r["word"], r.get("category", []))
+                for r in results if "word" in r
+            }
         except Exception as exc:
             last_err = exc
             if attempt < API_MAX_RETRY:
@@ -171,6 +218,8 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--recategorize", action="store_true",
                         help="category만 별도 프롬프트로 재분류 (definition_ko 유지)")
+    parser.add_argument("--limit", type=int, default=None,
+                        help="처리할 단어 수 상한 (소규모 검증용). --recategorize 와 함께 사용")
     args = parser.parse_args()
 
     api_key = os.getenv("OPENAI_API_KEY", "").strip()
@@ -180,19 +229,41 @@ def main() -> None:
     # ── recategorize 모드 ────────────────────────────────────────────────────────
     if args.recategorize:
         final_rows = load_jsonl(FINAL_PATH)
-        print(f"[INFO] recategorize 모드 | {len(final_rows)}개 전체 재분류")
+        targets = final_rows if args.limit is None else final_rows[:args.limit]
+        if args.limit is not None:
+            print(f"[INFO] recategorize 모드 | --limit {args.limit} → 상위 {len(targets)}개만 처리")
+        else:
+            print(f"[INFO] recategorize 모드 | {len(targets)}개 전체 재분류")
         client = OpenAI(api_key=api_key)
         done = 0
-        for i in range(0, len(final_rows), BATCH_SIZE):
-            batch = final_rows[i:i + BATCH_SIZE]
-            cat_map = call_llm_recategorize(client, batch)
-            for r in batch:
-                if r["word"] in cat_map:
-                    r["category"] = cat_map[r["word"]]
-            done += len(batch)
-            print(f"  [{done}/{len(final_rows)}] 완료")
-        write_jsonl(final_rows, FINAL_PATH)
+        unchanged = 0
+        try:
+            for i in range(0, len(targets), BATCH_SIZE):
+                batch = targets[i:i + BATCH_SIZE]
+                cat_map = call_llm_recategorize(client, batch)
+                for r in batch:
+                    if r["word"] in cat_map:
+                        r["category"] = cat_map[r["word"]]
+                    else:
+                        unchanged += 1
+                done += len(batch)
+                # 중간 저장: 165회 호출 중 실패해도 진행분을 잃지 않는다.
+                if (i // BATCH_SIZE) % 10 == 9:
+                    write_jsonl(final_rows, FINAL_PATH)
+                print(f"  [{done}/{len(targets)}] 완료")
+        finally:
+            write_jsonl(final_rows, FINAL_PATH)
+
         print(f"\n[DONE] category 재분류 완료 → {FINAL_PATH}")
+        if unchanged:
+            print(f"[WARN] LLM 응답에 없어 기존 category 를 유지한 단어: {unchanged}개")
+        if REJECTED_CATEGORIES:
+            total_rejected = sum(REJECTED_CATEGORIES.values())
+            print(f"[VALIDATION] 허용 어휘 밖이라 버린 값 {total_rejected}건:")
+            for c, n in REJECTED_CATEGORIES.most_common():
+                print(f"    {c}: {n}")
+        else:
+            print("[VALIDATION] 허용 어휘 위반 없음")
         print("\n=== 샘플 ===")
         lookup = {r["word"]: r for r in final_rows}
         for w in ["lmao", "omg", "wtf", "goat", "fomo", "dm", "rizz", "bet", "sus", "cap"]:
