@@ -4,6 +4,7 @@ import json
 import bz2
 import gzip
 import lzma
+import time
 from collections import defaultdict
 from typing import Dict, List, Set, Iterable, Tuple, Optional
 
@@ -19,15 +20,26 @@ except ImportError:
 # =========================
 CANDIDATE_JSON_PATH = "data_pipeline/output/slang_raw.json"
 
-# Reddit 댓글 덤프 파일들 경로
-REDDIT_DUMP_PATHS = [
-    "C:\\Users\\User\\Downloads\\reddit\\comments\\RC_2025-09.zst",
-    "C:\\Users\\User\\Downloads\\reddit\\comments\\RC_2025-12.zst",
+# Reddit 댓글 덤프 파일들 경로.
+# 환경변수 REDDIT_DUMP_PATHS 로 지정한다 (os.pathsep 구분, Windows는 ';' / POSIX는 ':').
+#   set REDDIT_DUMP_PATHS=D:\reddit\RC_2025-09.zst;D:\reddit\RC_2025-12.zst
+DEFAULT_REDDIT_DUMP_PATHS = [
+    "data_pipeline/dump/RC_2025-09.zst",
+    "data_pipeline/dump/RC_2025-12.zst",
 ]
+
+def resolve_reddit_dump_paths() -> List[str]:
+    raw = os.getenv("REDDIT_DUMP_PATHS", "").strip()
+    if not raw:
+        return list(DEFAULT_REDDIT_DUMP_PATHS)
+    return [p for p in (part.strip() for part in raw.split(os.pathsep)) if p]
 
 OUTPUT_MATCHED_PATH = "matched_candidates.json"
 OUTPUT_UNMATCHED_PATH = "unmatched_candidates.json"
 OUTPUT_STATS_PATH = "candidate_usage_stats.json"
+
+# 스캔 규모 지표 (처리 건수·소요 시간). 파이프라인 리포트용으로 남긴다.
+OUTPUT_SCAN_STATS_PATH = "data_pipeline/output/scan_stats.json"
 
 # body 필드명 후보
 BODY_KEYS = ["body", "comment", "text"]
@@ -213,6 +225,18 @@ def find_candidates_in_comment(
 # 메인
 # =========================
 def main():
+    dump_paths = resolve_reddit_dump_paths()
+    missing = [p for p in dump_paths if not os.path.exists(p)]
+    if missing:
+        raise FileNotFoundError(
+            "Reddit 덤프 파일을 찾을 수 없습니다: "
+            + ", ".join(missing)
+            + "\n환경변수 REDDIT_DUMP_PATHS 로 경로를 지정하세요 "
+            f"(구분자 '{os.pathsep}')."
+        )
+    print(f"[INFO] Reddit dumps: {dump_paths}")
+
+    started_at = time.time()
     candidates = load_candidates(CANDIDATE_JSON_PATH)
     ngram_index, normalized_to_items = build_ngram_index(candidates)
 
@@ -227,7 +251,7 @@ def main():
 
     total_comments = 0
 
-    for body, subreddit, source_file in iter_reddit_comments(REDDIT_DUMP_PATHS):
+    for body, subreddit, source_file in iter_reddit_comments(dump_paths):
         total_comments += 1
 
         found = find_candidates_in_comment(body, ngram_index)
@@ -290,12 +314,36 @@ def main():
     with open(OUTPUT_STATS_PATH, "w", encoding="utf-8") as f:
         json.dump(candidate_usage_stats, f, ensure_ascii=False, indent=2)
 
+    elapsed_sec = time.time() - started_at
+    matched_words = sum(1 for v in usage_stats.values() if v["matched"])
+
+    scan_stats = {
+        "stage": "2_parse_slang_raw",
+        "total_comments_processed": total_comments,
+        "elapsed_sec": round(elapsed_sec, 1),
+        "comments_per_sec": round(total_comments / elapsed_sec, 1) if elapsed_sec > 0 else None,
+        "candidate_words": len(normalized_to_items),
+        "matched_words": matched_words,
+        "dumps": [
+            {
+                "file": os.path.basename(p),
+                "compressed_bytes": os.path.getsize(p) if os.path.exists(p) else None,
+            }
+            for p in dump_paths
+        ],
+    }
+    os.makedirs(os.path.dirname(OUTPUT_SCAN_STATS_PATH), exist_ok=True)
+    with open(OUTPUT_SCAN_STATS_PATH, "w", encoding="utf-8") as f:
+        json.dump(scan_stats, f, ensure_ascii=False, indent=2)
+
     print("\n[DONE]")
     print(f"Total comments processed: {total_comments:,}")
-    print(f"Matched candidate words: {sum(1 for v in usage_stats.values() if v['matched']):,}")
+    print(f"Elapsed: {elapsed_sec/3600:.2f}h  ({scan_stats['comments_per_sec']:,} comments/sec)")
+    print(f"Matched candidate words: {matched_words:,}")
     print(f"Saved: {OUTPUT_MATCHED_PATH}")
     print(f"Saved: {OUTPUT_UNMATCHED_PATH}")
     print(f"Saved: {OUTPUT_STATS_PATH}")
+    print(f"Saved: {OUTPUT_SCAN_STATS_PATH}")
 
 
 if __name__ == "__main__":

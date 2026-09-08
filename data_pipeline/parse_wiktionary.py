@@ -1,5 +1,6 @@
 import bz2
 import json
+import os
 import re
 import xml.etree.ElementTree as ET
 from typing import List, Dict, Optional
@@ -7,7 +8,9 @@ from typing import List, Dict, Optional
 import mwparserfromhell
 
 
-DUMP_PATH = "data_pipeline/dump/enwiktionary-20250920-pages-articles-multistream.xml.bz2"
+# Wiktionary 덤프 경로. 환경변수 WIKTIONARY_DUMP_PATH 로 덮어쓸 수 있다.
+DEFAULT_DUMP_PATH = "data_pipeline/dump/enwiktionary-20250920-pages-articles-multistream.xml.bz2"
+DUMP_PATH = os.getenv("WIKTIONARY_DUMP_PATH", "").strip() or DEFAULT_DUMP_PATH
 OUTPUT_PATH = "data_pipeline/output/slang_raw.json"
 
 TARGET_LABELS = {

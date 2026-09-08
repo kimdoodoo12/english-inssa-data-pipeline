@@ -22,10 +22,22 @@ except ImportError:
 # Configuration
 # =========================
 SCORED_CANDIDATES_PATH = Path("data_pipeline/data/scored_candidates.json")
-REDDIT_DUMP_PATHS = [
-    r"C:\Users\User\Downloads\reddit\comments\RC_2025-09.zst",
-    r"C:\Users\User\Downloads\reddit\comments\RC_2025-12.zst",
+
+# Reddit 댓글 덤프 경로. 환경변수 REDDIT_DUMP_PATHS 로 지정한다 (os.pathsep 구분).
+# parse_slang_raw.py 와 동일한 규약.
+DEFAULT_REDDIT_DUMP_PATHS = [
+    "data_pipeline/dump/RC_2025-09.zst",
+    "data_pipeline/dump/RC_2025-12.zst",
 ]
+
+
+def resolve_reddit_dump_paths() -> List[str]:
+    raw = os.getenv("REDDIT_DUMP_PATHS", "").strip()
+    if not raw:
+        return list(DEFAULT_REDDIT_DUMP_PATHS)
+    return [p for p in (part.strip() for part in raw.split(os.pathsep)) if p]
+
+
 OUTPUT_PATH = Path("data_pipeline/candidate_context_cache.jsonl")
 SUMMARY_PATH = Path("data_pipeline/candidate_context_summary.jsonl")
 
@@ -379,12 +391,23 @@ def merge_results(
 # Main
 # =========================
 def main() -> None:
+    dump_paths = resolve_reddit_dump_paths()
+    missing = [p for p in dump_paths if not os.path.exists(p)]
+    if missing:
+        raise FileNotFoundError(
+            "Reddit 덤프 파일을 찾을 수 없습니다: "
+            + ", ".join(missing)
+            + "\n환경변수 REDDIT_DUMP_PATHS 로 경로를 지정하세요 "
+            f"(구분자 '{os.pathsep}')."
+        )
+    print(f"[INFO] Reddit dumps: {dump_paths}")
+
     ngram_index, phrase_to_norm, target_ns, word_meta = load_keep_candidates(SCORED_CANDIDATES_PATH)
 
     tmp_files: List[str] = []
     processes: List[multiprocessing.Process] = []
 
-    for i, dump_path in enumerate(REDDIT_DUMP_PATHS):
+    for i, dump_path in enumerate(dump_paths):
         tmp = tempfile.mktemp(suffix=f"_ctx_worker{i}.jsonl")
         tmp_files.append(tmp)
         p = multiprocessing.Process(
