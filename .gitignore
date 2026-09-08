@@ -20,3 +20,10 @@ data_pipeline/.claude/
 data_pipeline/stratified_review_output/
 data_pipeline/output/debug/
 data_pipeline/output/review/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
