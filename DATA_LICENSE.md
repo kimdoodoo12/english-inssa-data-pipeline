@@ -28,13 +28,28 @@ Wiktionary는 **동일조건변경허락(ShareAlike)** 조건이 붙는다. 따�
 |------|------|
 | 출처 | Reddit 월간 댓글 덤프 `RC_2025-09`, `RC_2025-12` (Pushshift 계열 아카이브) |
 | 사용 범위 | 단어별 출현 횟수(`match_count`), subreddit 수, 슬랭 판정용 문맥 샘플링 (Stage 2·5·6) |
-| 재배포 | **하지 않음** |
 
-**이 저장소에 커밋된 산출물에는 Reddit 원문 댓글 텍스트가 포함되어 있지 않다.**
-Reddit 데이터는 집계 통계(출현 횟수, subreddit 개수)와 LLM 판정의 중간 입력으로만 쓰였고,
-원문을 담은 `candidate_context_cache.jsonl`(~643MB)은 `.gitignore` 대상이라 저장소에 없다.
+### ⚠️ 원문 포함 현황
 
-따라서 사용자 생성 콘텐츠의 재배포나 개인정보 노출 문제는 발생하지 않는다.
+대부분의 산출물은 집계 통계만 담고 있으나, **두 파일의 `example_en` 필드에는 Reddit 댓글
+원문이 그대로 들어 있다.**
+
+| 파일 | `example_en` 출처 | 원문 포함 |
+|------|-------------------|-----------|
+| `service_public_approved.json` (384) | LLM이 생성한 학습용 예문 | 아니오 |
+| `service_public_pending.json` (2,909) | **Reddit 댓글 원문** | **예** |
+| `db_insert_draft.json` (3,293) | **Reddit 댓글 원문** | **예** |
+| `final_dataset.jsonl`, `ranked_candidates.jsonl`, `word_summary.jsonl` | 해당 필드 없음 | 아니오 |
+
+수집 문맥 전체를 담은 `candidate_context_cache.jsonl`(~643MB)은 `.gitignore` 대상이라
+저장소에 없다. 그러나 위 두 파일을 통해 약 6,200건의 댓글 원문이 재배포되고 있다.
+
+이 원문에는 비속어·성적 표현, 실존 인물을 지칭하는 내용, 차별적 표현이 포함되어 있다.
+Reddit 이용약관상 사용자 생성 콘텐츠의 대량 재배포는 제한되며, 공개 저장소에서는
+개인정보·콘텐츠 적절성 문제가 발생할 수 있다.
+
+**→ 해소 방법**: 두 파일의 `example_en` 을 제거하거나, `service_public_approved.json`
+처럼 LLM 생성 예문으로 대체한다. 단어별 통계(`match_count` 등)는 원문이 아니므로 영향받지 않는다.
 
 ## 3. LLM 생성 필드
 
@@ -54,7 +69,7 @@ OpenAI 이용약관상 출력물의 권리는 이용자에게 귀속된다. 다�
 ```
 코드          → MIT
 데이터셋      → CC BY-SA 4.0 (Wiktionary 승계)
-Reddit 원문   → 미포함 (통계만 사용)
+Reddit 원문   → service_public_pending.json, db_insert_draft.json 의 example_en 에 포함 (조치 필요)
 ```
 
 이 데이터셋을 사용할 경우 다음과 같이 출처를 표기하면 된다.

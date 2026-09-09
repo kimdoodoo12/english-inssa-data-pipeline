@@ -377,7 +377,7 @@ AI 사용:
 | `output/word_summary.jsonl` | 6,423 | Stage 6 LLM 판정 결과 |
 | `output/ranked_candidates.jsonl` | 3,293 | Stage 7 최종 후보 |
 | `output/final_dataset.jsonl` | 3,293 | 한국어 정의와 카테고리 포함 전체 데이터 |
-| `output/db_insert.json` | 3,293 | DB 삽입용 변환 결과 |
+| `output/db_insert_draft.json` | 3,293 | 초안 내보내기. **서비스 투입본 아님** — `example_en`이 AI 예문 생성 이전의 Reddit 원문이다 |
 | `output/service_public_approved.json` | 384 | 수동 검수 후 서비스 공개 승인 |
 | `output/service_public_pending.json` | 2,909 | 추가 검수 보류 |
 

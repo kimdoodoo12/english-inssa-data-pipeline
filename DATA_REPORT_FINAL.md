@@ -18,7 +18,7 @@
 - 목적: 사전 기반 후보를 **실제 사용 데이터로 검증**하여 신뢰도 높은 영어 슬랭 학습 데이터셋 구축
 - 데이터 소스: Wiktionary(사전), Reddit 댓글 덤프(실사용 검증), OpenAI GPT(의미·예문 보완)
 - 처리 규모: Wiktionary 후보 → Stage 4 keep 6,423개 → 최종 데이터 3,293개 → 수동 검수 승인 384개
-- 최종 산출물: `output/final_dataset.jsonl`(3,293), `output/db_insert.json`(3,293, DB 투입용), `output/service_public_approved.json`(384, 서비스 공개 확정)
+- 최종 산출물: `output/final_dataset.jsonl`(3,293), `output/db_insert_draft.json`(3,293, DB 투입용), `output/service_public_approved.json`(384, 서비스 공개 확정)
 - 웹서비스 활용: 단어·영어/한국어 정의·예문·카테고리를 슬랭 학습 콘텐츠로 제공 (DB INSERT용 파일 존재)
 
 ---
@@ -67,9 +67,9 @@
 | **필드명/형식 통일** | 단어 정규화 | `normalized_word` 키 사용, single_token/dispersion_score 등 정규화 필드 부여 | `rank_final_candidates.py`, `reddit_slang_llm_judger.py` | 단어 표기·필드 일관화 |
 | **카테고리 분류** | 서비스용 분류 부여 | LLM이 14개 고정 카테고리 중 1~3개 선택 (JSON 배열) | `add_korean_definitions.py` | 학습 서비스 UI 분류용 |
 | **유해/노골 표현 표시** | 노출 제어용 플래그 | `EXPLICIT_WORDS` 집합과 대조하여 `is_vulgar` 부여 | `rank_final_candidates.py` (L49~) | 욕설·성적 표현 필터링 근거 |
-| **저장 형식 변환** | DB 투입용 변환 | `final_dataset.jsonl` → 서비스 필드(`emoji`, `shorts_url` 등) 포함 JSON 배열로 변환 | `db_insert.json`(산출물) | DB INSERT용 형식 |
+| **저장 형식 변환** | DB 투입용 변환 | `final_dataset.jsonl` → 서비스 필드(`emoji`, `shorts_url` 등) 포함 JSON 배열로 변환 | `db_insert_draft.json`(산출물) | DB INSERT용 형식 |
 
-> `[확인 필요]` `db_insert.json` 생성 스크립트는 현재 git 추적 파일에서 확인되지 않음(산출물만 존재). 변환 로직의 정확한 코드 위치는 사용자 확인 필요.
+> `[확인 필요]` `db_insert_draft.json` 생성 스크립트는 현재 git 추적 파일에서 확인되지 않음(산출물만 존재). 변환 로직의 정확한 코드 위치는 사용자 확인 필요.
 
 ---
 
@@ -117,7 +117,7 @@ AI 사용은 코드에서 **명확히 확인됨**. 모델 기본값 `gpt-4.1-nan
 | 파일 | 형식 | 레코드 수 | 용도 |
 |---|---|---|---|
 | `output/final_dataset.jsonl` | JSONL | 3,293 | 전체 후보 (정의·카테고리 포함) |
-| `output/db_insert.json` | JSON 배열 | 3,293 | DB INSERT용 변환본 |
+| `output/db_insert_draft.json` | JSON 배열 | 3,293 | 초안 내보내기 (서비스 투입본 아님) |
 | `output/service_public_approved.json` | JSON 배열 | 384 | **서비스 공개 승인** (수동 검수 완료) |
 | `output/service_public_pending.json` | JSON 배열 | 2,909 | 보류 |
 | `output/word_summary.jsonl` | JSONL | 6,423 | Stage 6 LLM 판정 결과 |
@@ -155,7 +155,7 @@ AI 사용은 코드에서 **명확히 확인됨**. 모델 기본값 `gpt-4.1-nan
 | `note` | 비고 | `null` | 현재 전부 null |
 
 > 웹서비스 활용 핵심 필드: `word`, `definition_ko`, `example_en/ko`, `category`. `emoji`/`shorts_url`/`note`는 서비스에서 채우기 위한 **예약 빈 필드**로 보임.
-> 참고: `db_insert.json`의 `example_en`은 Reddit 원문 예문(`"Dm me and rate mine"`)이고 `example_ko`는 null인 반면, `service_public_approved.json`은 학습용으로 정제된 예문 사용 → 두 파일의 예문 출처가 다름.
+> 참고: `db_insert_draft.json`의 `example_en`은 Reddit 원문 예문(`"Dm me and rate mine"`)이고 `example_ko`는 null인 반면, `service_public_approved.json`은 학습용으로 정제된 예문 사용 → 두 파일의 예문 출처가 다름.
 
 ---
 
@@ -174,7 +174,7 @@ flowchart TD
     I --> J["수동 검수 승인 384<br/>(review_tool.py)"]
     J --> K["학습용 예문 생성<br/>(generate_examples.py)"]
     K --> L["서비스 공개 데이터<br/>service_public_approved.json"]
-    H --> M["DB INSERT용<br/>db_insert.json [확인 필요]"]
+    H --> M["DB INSERT용<br/>db_insert_draft.json"]
     L --> N["웹서비스 학습 콘텐츠"]
     M --> N
 
@@ -257,7 +257,7 @@ flowchart TD
 최종 데이터는 단어, 영어·한국어 정의, 학습용 예문, 카테고리, 슬랭 유형, 사용 빈도 등을 포함하는 구조화된 JSON/JSONL 형식으로 저장되며, 전체 후보 3,293개와 수동 검수를 거친 서비스 공개 승인 단어 384개로 구성된다.
 
 ### 10.7 웹서비스에서의 데이터 활용 방식
-최종 데이터는 DB 투입용 형식(`db_insert.json`)으로 변환되어 학습 웹서비스에 제공되며, 단어 카드·뜻·예문·카테고리 기반 분류 학습 콘텐츠로 활용되도록 설계되어 있다.
+최종 데이터는 DB 투입용 형식(`db_insert_draft.json`)으로 변환되어 학습 웹서비스에 제공되며, 단어 카드·뜻·예문·카테고리 기반 분류 학습 콘텐츠로 활용되도록 설계되어 있다.
 
 ---
 
@@ -266,11 +266,11 @@ flowchart TD
 1. **데이터 수집 기간** — Reddit 덤프 파일명(2025-09, 2025-12) 외 실제 수집 기준·기간
 2. **최종 데이터 개수의 "대표 수치"** — 보고용 대표 수치를 3,293(전체)로 할지 384(서비스 공개)로 할지
 3. **`difficulty_tier`(essential/common/supplemental) 생성 기준** — 생성 스크립트가 git에 없음. rank 기반 추정이나 근거 불명
-4. **`db_insert.json` 생성 로직 위치** — 변환 스크립트가 추적 파일에 없음
+4. **`db_insert_draft.json` 생성 로직 위치** — 변환 스크립트가 추적 파일에 없음
 5. **GPT 모델명 최종 확정값** — 코드 기본값은 `gpt-4.1-nano`이나 실제 실행 시 변경 여부
 6. **Reddit 슬랭 판정 임계값 근거** — K_TARGET=15, slang_ratio≥1.67% 등 기준치 설정 이유
 7. **카테고리 14종 외 소수 값(성·성적 표현 등)** — 의도된 분류인지 LLM 오류인지
-8. **실제 웹서비스가 사용하는 최종 파일** — `service_public_approved.json`(384)인지 `db_insert.json`(3,293) 전체인지
+8. **실제 웹서비스가 사용하는 최종 파일** — `service_public_approved.json`(384)인지 `db_insert_draft.json`(3,293) 전체인지
 9. **수동 검수(review_tool) 승인/보류 기준** — 384개 승인 시 적용한 사람 판단 기준
 10. **Stage 1~5 중간 산출물 실물** — 대용량으로 git 미포함, 재현 시 원본 덤프 필요
 

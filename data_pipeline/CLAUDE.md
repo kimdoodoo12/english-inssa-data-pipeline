@@ -80,7 +80,7 @@ sync_service_categories.py  → 파생본(approved/pending)의 category 를
 | `output/service_public_approved.json` | 384 | **최종 서비스 투입 단어** (수동 검수 완료) |
 | `output/service_public_pending.json` | 2,909 | 보류 (추가 검토 필요) |
 | `output/final_dataset.jsonl` | 3,293 | 전체 후보 (definition_ko + category 포함) |
-| `output/db_insert.json` | 3,293 | DB INSERT용 (final_dataset.jsonl 후처리 산출물) |
+| `output/db_insert_draft.json` | 3,293 | 초안 내보내기. **서비스 투입본 아님** — `example_en`이 AI 예문 생성 이전의 Reddit 원문이다 |
 
 ## Architecture
 
