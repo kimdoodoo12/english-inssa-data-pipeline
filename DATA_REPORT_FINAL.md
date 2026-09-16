@@ -69,7 +69,7 @@
 | **유해/노골 표현 표시** | 노출 제어용 플래그 | `EXPLICIT_WORDS` 집합과 대조하여 `is_vulgar` 부여 | `rank_final_candidates.py` (L49~) | 욕설·성적 표현 필터링 근거 |
 | **저장 형식 변환** | DB 투입용 변환 | `final_dataset.jsonl` → 서비스 필드(`emoji`, `shorts_url` 등) 포함 JSON 배열로 변환 | `db_insert_draft.json`(산출물) | DB INSERT용 형식 |
 
-> `[확인 필요]` `db_insert_draft.json` 생성 스크립트는 현재 git 추적 파일에서 확인되지 않음(산출물만 존재). 변환 로직의 정확한 코드 위치는 사용자 확인 필요.
+> `db_insert_draft.json` 은 `export_db.py` 가 생성한다. `example_en` 에 `reddit_examples[0]`(Reddit 원문)을 넣으므로, AI 예문이 들어간 `service_public_approved.json` 과 값이 다르다.
 
 ---
 
@@ -105,7 +105,7 @@ AI 사용은 코드에서 **명확히 확인됨**. 모델 기본값 `gpt-4.1-nan
 - 서비스 `category` 14종(코드 `add_korean_definitions.py` L34~): 칭찬·인정, 긍정·동의, 감탄·놀람, 강조 표현, 일상 대화, SNS·인터넷 반응, 줄임말·약어, 감정 표현, 비판·부정 반응, 관계·연애, 유머·밈, 게임·커뮤니티, 돈·라이프스타일, 주의/거친 표현
 - **AI 미사용 단계**: Stage 1~5, Stage 7(랭킹 계산), `review_tool.py`(수동 검수) — 규칙·통계·사람 판단만 사용.
 
-> 참고: 실제 데이터에는 위 14종 외 소수의 값(`성·성적 표현` 3건, `스포츠·게임`·`감사·인사`·`감각·신체` 각 1건)이 섞여 있음 → LLM이 목록 밖 값을 생성한 사례로 보임. `[확인 필요]`
+> **해소됨**: 초기 데이터에는 14종 외의 값(`성·성적 표현` 3건, `스포츠·게임`·`감사·인사`·`감각·신체` 각 1건)이 섞여 있었다. LLM이 프롬프트의 목록 밖 값을 생성한 사례로, `add_korean_definitions.py` 의 `validate_categories()` 로 응답 단계에서 차단하도록 수정했다. 현재 데이터는 `quality_report.py` 의 어휘 검증을 통과한다.
 > `[확인 필요]` 정확한 GPT 모델명(실제 실행 시 `OPENAI_MODEL` 환경변수 override 여부)은 코드 기본값(`gpt-4.1-nano`)만 확인 가능.
 
 ---
@@ -136,7 +136,7 @@ AI 사용은 코드에서 **명확히 확인됨**. 모델 기본값 `gpt-4.1-nan
 | `slang_ratio` | 슬랭 사용 비율 | `0.833333` | slang_hits/sampled |
 | `match_count` | Reddit 총 등장 횟수 | `6763933` | |
 | `is_vulgar` | 노골/욕설 여부 | `false` | EXPLICIT_WORDS 대조 |
-| `difficulty_tier` | 난이도 구간 | `"essential"` | essential 200 / common 500 / supplemental 2593 — **`[확인 필요]`** 생성 스크립트 미확인 |
+| `difficulty_tier` | 난이도 구간 | `"essential"` | `enrich_dataset.py` 가 rank 기준으로 부여 (≤200 essential / ≤700 common / 나머지 supplemental) → 200 / 500 / 2,593 |
 | `definition_ko` | 한국어 정의 | `"온라인에서 누군가에게 비공개 메시지..."` | `add_korean_definitions.py` |
 | `category` | 서비스 카테고리(배열) | `["줄임말·약어","일상 대화"]` | 1~3개 |
 
@@ -265,8 +265,8 @@ flowchart TD
 
 1. **데이터 수집 기간** — Reddit 덤프 파일명(2025-09, 2025-12) 외 실제 수집 기준·기간
 2. **최종 데이터 개수의 "대표 수치"** — 보고용 대표 수치를 3,293(전체)로 할지 384(서비스 공개)로 할지
-3. **`difficulty_tier`(essential/common/supplemental) 생성 기준** — 생성 스크립트가 git에 없음. rank 기반 추정이나 근거 불명
-4. **`db_insert_draft.json` 생성 로직 위치** — 변환 스크립트가 추적 파일에 없음
+3. ~~`difficulty_tier` 생성 기준~~ — **해소**: `enrich_dataset.py` 의 `TIER_ESSENTIAL_MAX=200`, `TIER_COMMON_MAX=700`
+4. ~~`db_insert_draft.json` 생성 로직 위치~~ — **해소**: `export_db.py`
 5. **GPT 모델명 최종 확정값** — 코드 기본값은 `gpt-4.1-nano`이나 실제 실행 시 변경 여부
 6. **Reddit 슬랭 판정 임계값 근거** — K_TARGET=15, slang_ratio≥1.67% 등 기준치 설정 이유
 7. **카테고리 14종 외 소수 값(성·성적 표현 등)** — 의도된 분류인지 LLM 오류인지
@@ -280,7 +280,7 @@ flowchart TD
 
 - **파이프라인 흐름도** (§8 Mermaid) — 보고서 핵심 그림
 - **`final_dataset.jsonl` 실제 레코드 1건 캡처** — 데이터 구조 증빙 (예: `dm` 레코드)
-- **Stage 6 판정 결과 분포 표** — drop 3,085 / enough_evidence 2,412 / holdout 926 (출처: `PIPELINE_REPORT.md`, `[확인 필요]`: `word_summary.jsonl` 재집계 권장)
+- **Stage 6 판정 결과 분포 표** — drop 3,085 / enough_evidence 2,412 / holdout 926 (`quality_report.py` 가 `word_summary.jsonl` 에서 직접 재집계한 값)
 - **단계별 후보 수 감소 그래프** — 6,423 → 3,293 → 384 (깔때기 형태)
 - **카테고리별 단어 분포** (final_dataset 실제 집계): 일상 대화 1,205 / 감탄·놀람 552 / 감정 표현 453 / 비판·부정 반응 277 / 관계·연애 219 / 유머·밈 175 / 줄임말·약어 156 / 게임·커뮤니티 138 / 주의/거친 표현 133 / 돈·라이프스타일 115 / 칭찬·인정 67 / 강조 표현 50 / 긍정·동의 34
 - **난이도 tier 분포** — essential 200 / common 500 / supplemental 2,593
