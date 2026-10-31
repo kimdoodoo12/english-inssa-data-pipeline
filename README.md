@@ -17,14 +17,14 @@ Wiktionary 슬랭 후보
 ```
 
 압축 상태의 Reddit 월간 덤프 2개를 **단일 머신에서 스트리밍 처리**하고,
-모든 단계가 **중단 후 재시작해도 안전**하도록 설계했다.
+LLM 판정과 수동 검수는 **단어 단위로 진행분을 저장**해 중단에 대비했다.
 
 | | |
 |---|---|
 | **Python** | 3.12 · 의존성 3개 (`mwparserfromhell`, `zstandard`, `openai`) |
 | **LLM** | gpt-4.1-nano · `temperature=0` · JSON 스키마 강제 |
 | **검증** | 단위 테스트 43개 · CI에서 데이터 품질 게이트 2종 |
-| **산출물** | [`data_pipeline/output/`](data_pipeline/output/) — 저장소에 포함, clone 후 바로 실행 가능 |
+| **산출물** | [`data_pipeline/output/`](data_pipeline/output/) — 저장소에 포함. 품질 리포트·테스트는 clone 후 바로 실행 가능 |
 
 ---
 
@@ -43,6 +43,69 @@ Wiktionary 슬랭 후보
 
 ---
 
+## 후보 선별 (Stage 1~4)
+
+Wiktionary 슬랭 표제어를 Reddit 실사용 빈도로 6,423개까지 좁히는 구간이다. LLM은 쓰지 않는다.
+
+```
+Wiktionary 슬랭 정의 항목         44,033   (Stage 1 → slang_raw, 정의 단위)
+        │  Reddit 전수 스캔 · 표면형 매칭
+Reddit 매칭 후보                 29,123   (Stage 2 → 매칭된 고유 단어, 40,058 정의 항목)
+        │  stopword · 기능어 구문 · 저빈도 필터
+Stage 3 통과                     15,198   (24,166 정의 항목)
+        │  support_score 로 keep 선별
+Stage 4 keep                       6,423
+        │  LLM이 실제 문맥으로 슬랭 여부 판정
+LLM 판정 통과                      3,293
+        │  사람이 직접 검수
+검수 통과                            384
+```
+
+Stage 3에서 13,925단어가 제거됐다. 사유별로는 `match_count <= 200` 13,753, stopword 단독 173, 기능어 구문 20이다
+(한 단어가 사유를 둘 이상 가질 수 있어 합계가 13,925와 정확히 일치하지 않는다).
+Stage 4는 15,198단어를 keep 6,423 / gray_zone 2,478 / prune 6,297로 나눈다.
+이 숫자의 근거인 `data_pipeline/data/filter_summary.json`과 Stage 4 결과 `scored_candidates.json.gz`(Stage 5가 읽는 입력, 압축 해제 후 `data_pipeline/data/scored_candidates.json`으로 두면 된다)를 저장소에 포함했다. 웹에서 바로 볼 수 있는 일부 발췌는 `scored_candidates_sample.json`이다. 그 밖의 대용량 중간 산출물(`slang_raw`, `matched_candidates` 등)은 포함하지 않았다.
+
+### Stage 1. 표제어와 라벨 추출 (`parse_wiktionary.py`)
+
+`==English==` 섹션만 잘라 정의 줄의 라벨을 읽는다. 대상 라벨은 6종이다:
+`slang`, `internet slang`, `internet`, `aave`, `informal`, `colloquial`.
+
+→ 라벨은 네 가지 표기를 모두 본다: `{{lb|en|...}}`(`label`·`lbl` 포함), `{{context|...}}`(`cx`), `{{qualifier|...}}`(`q`), 괄호형 `(slang)`.
+예문은 첫 `#:` 줄만 쓰고, `quote-*` 인용문은 예문으로 쓰지 않는다.
+
+### Stage 2. Reddit 전수 스캔 (`parse_slang_raw.py`)
+
+댓글과 후보를 같은 방식으로 정규화(소문자, `_`·`-`는 공백)한 뒤 토큰화한다.
+후보를 토큰 길이별 n-gram 인덱스로 만들어, **댓글 한 번 훑을 때** 모든 후보를 한꺼번에 대조한다.
+
+- `match_count` = 후보가 등장한 **댓글 수** (한 댓글에 여러 번 나와도 1회)
+- `subreddit_count` = 후보가 나온 서로 다른 subreddit 수
+
+한계: 매칭은 **표면형 완전일치**다. 굴절형(`slays`, `vibing` 등)은 처리하지 않아 별개 문자열로 취급된다.
+
+### Stage 3. 명백한 비슬랭 제거 (`filter_matched_candidates.py`)
+
+- stopword만으로 이뤄진 후보 제거
+- 기능어 구문 블랙리스트 20개(`on the`, `a lot`, `kind of` 등) 제거 (다단어 후보에만 적용)
+- `match_count <= 200` 제거
+
+### Stage 4. 사용량 점수화 (`rank_slang_candidates.py`)
+
+```
+support_score = 0.6 × log10(1 + match_count) + 0.4 × log10(1 + subreddit_count)
+
+keep   : score >= 3.65     → 다음 단계로 통과 (6,423개)
+gray   : 3.20 <= score < 3.65
+prune  : score < 3.20
+```
+
+→ sense(정의)별로 흩어진 행은 `normalized_word`로 묶고, `match_count`와 `subreddit_count`는 묶음 안의 **최댓값**을 쓴다.
+
+임계값은 각 스크립트 상단 상수로 두었다 (Stage 3의 컷은 `--match-threshold` 옵션).
+
+---
+
 ## 이 문제의 어려운 지점
 
 ### 1. 데이터가 메모리에 들어가지 않는다
@@ -58,7 +121,7 @@ Reddit은 `zstandard` 스트리밍. 메모리 사용량이 입력 크기와 무�
 LLM 판정에는 단어당 100~200개의 실제 사용 문맥이 필요하다. 그런데 스트림 앞에서부터
 N개를 자르면 덤프 앞부분(특정 시간대·서브레딧)에 치우친 표본이 된다.
 
-→ **Reservoir Sampling (Knuth)** 으로 한 번의 순회만으로 균등 확률 표본을 얻었다.
+→ **Reservoir Sampling (Knuth)** 으로 한 번의 순회만으로 표본을 얻었다. (모든 단어의 표본이 가득 차면 스캔을 일찍 끝내므로, 아주 흔한 단어는 덤프 앞부분의 비중이 다소 커질 수 있다.)
 `RANDOM_SEED=42` 고정으로 재실행 시 동일한 표본이 재현된다.
 빈도가 높은 단어일수록 의미가 분산되므로, `match_count` 구간별로 목표 표본 수를 100~200개로 차등했다.
 
@@ -82,9 +145,9 @@ N개를 자르면 덤프 앞부분(특정 시간대·서브레딧)에 치우친 
 ### 4. 수천 번의 API 호출은 반드시 중간에 끊긴다
 
 → **중단을 정상 경로로 가정했다.**
-판정 결과를 단어 단위로 즉시 flush하고, 재실행 시 `decision == "drop"` 항목은 건너뛴다.
+판정 결과를 단어 단위로 즉시 flush하고, 재실행 시 `decision == "drop"` 항목은 다시 판정하지 않는다. (drop이 아닌 단어는 재실행 시 처음부터 다시 판정한다.)
 재판정 비용을 막으면서 판정 일관성도 유지된다.
-예문 생성·수동 검수도 각각 progress 파일로 같은 방식을 따른다.
+수동 검수는 progress 파일로 진행분을 보존한다.
 
 ### 5. 빈도만으로 랭킹하면 슬랭이 아닌 단어가 상위에 온다
 

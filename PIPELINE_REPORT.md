@@ -128,7 +128,7 @@ Stage 7  rank_final_candidates.py
 - Reddit 매칭 이력이 없는 후보
 - stopword만으로 구성된 후보
 - 기능어 구문 블랙리스트에 해당하는 후보
-- 기본 기준 `match_count < 200`
+- 기본 기준 `match_count <= 200` (200 이하 제거)
 
 ### Stage 4: `rank_slang_candidates.py`
 

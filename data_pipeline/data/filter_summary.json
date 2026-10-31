@@ -1,0 +1,396 @@
+{
+  "config": {
+    "match_threshold": 200,
+    "stopword_count": 179,
+    "function_phrase_blacklist_count": 20,
+    "safelist_count": 0
+  },
+  "counts": {
+    "input_entries": 40058,
+    "input_normalized_words": 29123,
+    "kept_entries": 24166,
+    "kept_normalized_words": 15198,
+    "dropped_entries": 15892,
+    "dropped_normalized_words": 13925
+  },
+  "drop_reason_counts_by_word": {
+    "low_match_count_lte_200": 13753,
+    "stopword_only": 173,
+    "function_phrase_blacklist": 20
+  },
+  "drop_reason_counts_by_entry": {
+    "low_match_count_lte_200": 15585,
+    "stopword_only": 302,
+    "function_phrase_blacklist": 32
+  },
+  "examples_by_reason": {
+    "low_match_count_lte_200": [
+      {
+        "normalized_word": "abominate",
+        "entry_count": 1,
+        "match_count": 79,
+        "subreddit_count": 53
+      },
+      {
+        "normalized_word": "mouse potato",
+        "entry_count": 1,
+        "match_count": 18,
+        "subreddit_count": 5
+      },
+      {
+        "normalized_word": "absquatulate",
+        "entry_count": 1,
+        "match_count": 44,
+        "subreddit_count": 18
+      },
+      {
+        "normalized_word": "slushpile",
+        "entry_count": 1,
+        "match_count": 8,
+        "subreddit_count": 6
+      },
+      {
+        "normalized_word": "frankenfood",
+        "entry_count": 1,
+        "match_count": 72,
+        "subreddit_count": 53
+      },
+      {
+        "normalized_word": "buckley's chance",
+        "entry_count": 1,
+        "match_count": 20,
+        "subreddit_count": 14
+      },
+      {
+        "normalized_word": "pythonesque",
+        "entry_count": 1,
+        "match_count": 64,
+        "subreddit_count": 56
+      },
+      {
+        "normalized_word": "uey",
+        "entry_count": 1,
+        "match_count": 102,
+        "subreddit_count": 71
+      },
+      {
+        "normalized_word": "cooee",
+        "entry_count": 3,
+        "match_count": 58,
+        "subreddit_count": 43
+      },
+      {
+        "normalized_word": "taswegian",
+        "entry_count": 1,
+        "match_count": 12,
+        "subreddit_count": 10
+      },
+      {
+        "normalized_word": "dry as a dead dingo's donger",
+        "entry_count": 2,
+        "match_count": 14,
+        "subreddit_count": 13
+      },
+      {
+        "normalized_word": "kangaroo bar",
+        "entry_count": 1,
+        "match_count": 1,
+        "subreddit_count": 1
+      },
+      {
+        "normalized_word": "roo bar",
+        "entry_count": 1,
+        "match_count": 31,
+        "subreddit_count": 18
+      },
+      {
+        "normalized_word": "yegg",
+        "entry_count": 2,
+        "match_count": 22,
+        "subreddit_count": 16
+      },
+      {
+        "normalized_word": "four oh four",
+        "entry_count": 1,
+        "match_count": 5,
+        "subreddit_count": 5
+      },
+      {
+        "normalized_word": "four one one",
+        "entry_count": 1,
+        "match_count": 7,
+        "subreddit_count": 7
+      },
+      {
+        "normalized_word": "twenty four seven",
+        "entry_count": 1,
+        "match_count": 101,
+        "subreddit_count": 80
+      },
+      {
+        "normalized_word": "a hundred and ten percent",
+        "entry_count": 1,
+        "match_count": 14,
+        "subreddit_count": 14
+      },
+      {
+        "normalized_word": "bit of crumpet",
+        "entry_count": 1,
+        "match_count": 10,
+        "subreddit_count": 9
+      },
+      {
+        "normalized_word": "piece of crumpet",
+        "entry_count": 1,
+        "match_count": 2,
+        "subreddit_count": 2
+      }
+    ],
+    "stopword_only": [
+      {
+        "normalized_word": "on",
+        "entry_count": 6,
+        "match_count": 81889741,
+        "subreddit_count": 236756
+      },
+      {
+        "normalized_word": "in",
+        "entry_count": 1,
+        "match_count": 124155197,
+        "subreddit_count": 261919
+      },
+      {
+        "normalized_word": "can",
+        "entry_count": 10,
+        "match_count": 47565183,
+        "subreddit_count": 209824
+      },
+      {
+        "normalized_word": "be",
+        "entry_count": 1,
+        "match_count": 75232666,
+        "subreddit_count": 219110
+      },
+      {
+        "normalized_word": "because",
+        "entry_count": 1,
+        "match_count": 28830411,
+        "subreddit_count": 130037
+      },
+      {
+        "normalized_word": "most",
+        "entry_count": 2,
+        "match_count": 15135235,
+        "subreddit_count": 119707
+      },
+      {
+        "normalized_word": "and",
+        "entry_count": 2,
+        "match_count": 185521696,
+        "subreddit_count": 294473
+      },
+      {
+        "normalized_word": "now",
+        "entry_count": 2,
+        "match_count": 21453117,
+        "subreddit_count": 153938
+      },
+      {
+        "normalized_word": "it",
+        "entry_count": 4,
+        "match_count": 138804791,
+        "subreddit_count": 273919
+      },
+      {
+        "normalized_word": "yours",
+        "entry_count": 1,
+        "match_count": 1305541,
+        "subreddit_count": 65732
+      },
+      {
+        "normalized_word": "you",
+        "entry_count": 2,
+        "match_count": 146333078,
+        "subreddit_count": 314873
+      },
+      {
+        "normalized_word": "of",
+        "entry_count": 1,
+        "match_count": 143951812,
+        "subreddit_count": 259463
+      },
+      {
+        "normalized_word": "some",
+        "entry_count": 1,
+        "match_count": 26849496,
+        "subreddit_count": 163114
+      },
+      {
+        "normalized_word": "at",
+        "entry_count": 2,
+        "match_count": 47185894,
+        "subreddit_count": 177819
+      },
+      {
+        "normalized_word": "too",
+        "entry_count": 1,
+        "match_count": 21155613,
+        "subreddit_count": 161849
+      },
+      {
+        "normalized_word": "this",
+        "entry_count": 1,
+        "match_count": 101051481,
+        "subreddit_count": 248396
+      },
+      {
+        "normalized_word": "to",
+        "entry_count": 1,
+        "match_count": 198341470,
+        "subreddit_count": 317190
+      },
+      {
+        "normalized_word": "his",
+        "entry_count": 1,
+        "match_count": 18341935,
+        "subreddit_count": 99906
+      },
+      {
+        "normalized_word": "her",
+        "entry_count": 2,
+        "match_count": 17129050,
+        "subreddit_count": 127035
+      },
+      {
+        "normalized_word": "our",
+        "entry_count": 2,
+        "match_count": 16608068,
+        "subreddit_count": 99526
+      }
+    ],
+    "function_phrase_blacklist": [
+      {
+        "normalized_word": "out of",
+        "entry_count": 2,
+        "match_count": 7821739,
+        "subreddit_count": 99383
+      },
+      {
+        "normalized_word": "how much",
+        "entry_count": 1,
+        "match_count": 2395977,
+        "subreddit_count": 72436
+      },
+      {
+        "normalized_word": "has been",
+        "entry_count": 1,
+        "match_count": 7224065,
+        "subreddit_count": 78455
+      },
+      {
+        "normalized_word": "a lot",
+        "entry_count": 5,
+        "match_count": 11844660,
+        "subreddit_count": 113582
+      },
+      {
+        "normalized_word": "do it",
+        "entry_count": 4,
+        "match_count": 3633227,
+        "subreddit_count": 84749
+      },
+      {
+        "normalized_word": "as well",
+        "entry_count": 1,
+        "match_count": 6135393,
+        "subreddit_count": 98599
+      },
+      {
+        "normalized_word": "up to",
+        "entry_count": 1,
+        "match_count": 3179497,
+        "subreddit_count": 75418
+      },
+      {
+        "normalized_word": "kind of",
+        "entry_count": 1,
+        "match_count": 4526685,
+        "subreddit_count": 86243
+      },
+      {
+        "normalized_word": "with it",
+        "entry_count": 2,
+        "match_count": 2409545,
+        "subreddit_count": 69438
+      },
+      {
+        "normalized_word": "to the",
+        "entry_count": 1,
+        "match_count": 19579298,
+        "subreddit_count": 127555
+      },
+      {
+        "normalized_word": "can do",
+        "entry_count": 1,
+        "match_count": 2270185,
+        "subreddit_count": 68280
+      },
+      {
+        "normalized_word": "the one",
+        "entry_count": 2,
+        "match_count": 2855098,
+        "subreddit_count": 74128
+      },
+      {
+        "normalized_word": "a bit",
+        "entry_count": 2,
+        "match_count": 4782480,
+        "subreddit_count": 87377
+      },
+      {
+        "normalized_word": "up and",
+        "entry_count": 1,
+        "match_count": 2372083,
+        "subreddit_count": 71404
+      },
+      {
+        "normalized_word": "and that",
+        "entry_count": 2,
+        "match_count": 2988180,
+        "subreddit_count": 71636
+      },
+      {
+        "normalized_word": "i am",
+        "entry_count": 1,
+        "match_count": 29594198,
+        "subreddit_count": 130892
+      },
+      {
+        "normalized_word": "want to",
+        "entry_count": 1,
+        "match_count": 12020285,
+        "subreddit_count": 134444
+      },
+      {
+        "normalized_word": "on it",
+        "entry_count": 1,
+        "match_count": 2248090,
+        "subreddit_count": 71157
+      },
+      {
+        "normalized_word": "on the",
+        "entry_count": 1,
+        "match_count": 19826158,
+        "subreddit_count": 132247
+      },
+      {
+        "normalized_word": "i see",
+        "entry_count": 1,
+        "match_count": 2632553,
+        "subreddit_count": 81672
+      }
+    ]
+  },
+  "inconsistent_group_count": 0,
+  "inconsistent_group_examples": []
+}

@@ -10,7 +10,10 @@ data_pipeline/candidate_context_cache.jsonl
 data_pipeline/candidate_context_summary.jsonl
 data_pipeline/output/context_judgments.jsonl
 data_pipeline/word_summary.jsonl
-data_pipeline/data/
+data_pipeline/data/*
+!data_pipeline/data/filter_summary.json
+!data_pipeline/data/scored_candidates.json.gz
+!data_pipeline/data/scored_candidates_sample.json
 
 # Claude internal state
 .claude/

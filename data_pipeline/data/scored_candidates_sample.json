@@ -1,0 +1,1645 @@
+[
+ {
+  "normalized_word": "like",
+  "surface_forms": [
+   "like"
+  ],
+  "definitions": [
+   {
+    "word": "like",
+    "definition_en": "To show support for, or approval of, something posted on the Internet by marking it with a vote.",
+    "example_en": "I liked my friend's last status on Facebook.",
+    "source_label": [
+     "internet"
+    ]
+   },
+   {
+    "word": "like",
+    "definition_en": "To be prone to.",
+    "example_en": "Too bad this cheese likes to stick to the pan and ruin the whole meal.",
+    "source_label": [
+     "informal"
+    ]
+   }
+  ],
+  "match_count": 59302088,
+  "subreddit_count": 212418,
+  "source_labels": [
+   "colloquial",
+   "informal",
+   "internet"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 7,
+  "support_score": 6.794719,
+  "support_label": "keep",
+  "support_rank": 1
+ },
+ {
+  "normalized_word": "get",
+  "surface_forms": [
+   "get"
+  ],
+  "definitions": [
+   {
+    "word": "get",
+    "definition_en": "To understand.",
+    "example_en": "Yeah, I get it, it's just not funny.",
+    "source_label": [
+     "informal"
+    ]
+   },
+   {
+    "word": "get",
+    "definition_en": "To be told; be the recipient of (a question, comparison, opinion, etc.).",
+    "example_en": "\"You look just like Helen Mirren.\" / \"I get that a lot.\"",
+    "source_label": [
+     "informal"
+    ]
+   }
+  ],
+  "match_count": 38969418,
+  "subreddit_count": 179434,
+  "source_labels": [
+   "informal"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 7,
+  "support_score": 6.655997,
+  "support_label": "keep",
+  "support_rank": 2
+ },
+ {
+  "normalized_word": "one",
+  "surface_forms": [
+   "one"
+  ],
+  "definitions": [
+   {
+    "word": "one",
+    "definition_en": "A particularly special or compatible person or thing.",
+    "example_en": "I knew as soon I met him that John was the one for me and we were married within a month.",
+    "source_label": [
+     "colloquial"
+    ]
+   }
+  ],
+  "match_count": 38531899,
+  "subreddit_count": 180626,
+  "source_labels": [
+   "colloquial"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 1,
+  "support_score": 6.654205,
+  "support_label": "keep",
+  "support_rank": 3
+ },
+ {
+  "normalized_word": "https",
+  "surface_forms": [
+   "HTTPS"
+  ],
+  "definitions": [
+   {
+    "word": "HTTPS",
+    "definition_en": ", an extension to HTTP that uses an encrypted form of data transfer on the Internet.",
+    "example_en": "",
+    "source_label": [
+     "internet"
+    ]
+   }
+  ],
+  "match_count": 38355383,
+  "subreddit_count": 167915,
+  "source_labels": [
+   "internet"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 1,
+  "support_score": 6.640333,
+  "support_label": "keep",
+  "support_rank": 4
+ },
+ {
+  "normalized_word": "good",
+  "surface_forms": [
+   "good"
+  ],
+  "definitions": [
+   {
+    "word": "good",
+    "definition_en": "Accepting of, OK with",
+    "example_en": "My mother said she's good with me being alone with my date as long as she's met them first.",
+    "source_label": [
+     "colloquial"
+    ]
+   },
+   {
+    "word": "good",
+    "definition_en": "Very, extremely. See .",
+    "example_en": "The soup is good and hot.",
+    "source_label": [
+     "colloquial"
+    ]
+   }
+  ],
+  "match_count": 26964610,
+  "subreddit_count": 178354,
+  "source_labels": [
+   "colloquial",
+   "informal",
+   "internet slang"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 5,
+  "support_score": 6.558991,
+  "support_label": "keep",
+  "support_rank": 5
+ },
+ {
+  "normalized_word": "time",
+  "surface_forms": [
+   "time"
+  ],
+  "definitions": [
+   {
+    "word": "time",
+    "definition_en": "The serving of a prison sentence.",
+    "example_en": "The judge leniently granted a sentence with no hard time. He is not living at home because he is doing time.",
+    "source_label": [
+     "slang"
+    ]
+   }
+  ],
+  "match_count": 26514072,
+  "subreddit_count": 155189,
+  "source_labels": [
+   "slang"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 1,
+  "support_score": 6.530431,
+  "support_label": "keep",
+  "support_rank": 6
+ },
+ {
+  "normalized_word": "r",
+  "surface_forms": [
+   "'r"
+  ],
+  "definitions": [
+   {
+    "word": "'r",
+    "definition_en": ", representing an unstressed pronunciation.",
+    "example_en": "",
+    "source_label": [
+     "informal"
+    ]
+   }
+  ],
+  "match_count": 31278404,
+  "subreddit_count": 119363,
+  "source_labels": [
+   "informal"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 1,
+  "support_score": 6.527896,
+  "support_label": "keep",
+  "support_rank": 7
+ },
+ {
+  "normalized_word": "people",
+  "surface_forms": [
+   "people"
+  ],
+  "definitions": [
+   {
+    "word": "people",
+    "definition_en": "To interact with people; to socialize.",
+    "example_en": "",
+    "source_label": [
+     "informal"
+    ]
+   }
+  ],
+  "match_count": 30316942,
+  "subreddit_count": 123678,
+  "source_labels": [
+   "informal"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 1,
+  "support_score": 6.52593,
+  "support_label": "keep",
+  "support_rank": 8
+ },
+ {
+  "normalized_word": "even",
+  "surface_forms": [
+   "even"
+  ],
+  "definitions": [
+   {
+    "word": "even",
+    "definition_en": "On equal terms of a moral sort; quits.",
+    "example_en": "You biffed me back at the barn, and I biffed you here—so now we're even.",
+    "source_label": [
+     "colloquial"
+    ]
+   }
+  ],
+  "match_count": 24827141,
+  "subreddit_count": 138249,
+  "source_labels": [
+   "colloquial"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 1,
+  "support_score": 6.493222,
+  "support_label": "keep",
+  "support_rank": 9
+ },
+ {
+  "normalized_word": "want",
+  "surface_forms": [
+   "want"
+  ],
+  "definitions": [
+   {
+    "word": "want",
+    "definition_en": "To be advised to do something .",
+    "example_en": "You’ll want to repeat this three or four times to get the best result.",
+    "source_label": [
+     "colloquial"
+    ]
+   },
+   {
+    "word": "want",
+    "definition_en": "To lack and be in need of or require (something, such as a noun or verbal noun).",
+    "example_en": "That chair wants fixing and a clean.",
+    "source_label": [
+     "colloquial"
+    ]
+   }
+  ],
+  "match_count": 20838268,
+  "subreddit_count": 164057,
+  "source_labels": [
+   "colloquial"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 2,
+  "support_score": 6.477316,
+  "support_label": "keep",
+  "support_rank": 10
+ },
+ {
+  "normalized_word": "make",
+  "surface_forms": [
+   "make"
+  ],
+  "definitions": [
+   {
+    "word": "make",
+    "definition_en": "To behave, to act.",
+    "example_en": "To make like a deer caught in the headlights.",
+    "source_label": [
+     "colloquial"
+    ]
+   },
+   {
+    "word": "make",
+    "definition_en": "To recognise, identify, spot.",
+    "example_en": "",
+    "source_label": [
+     "slang"
+    ]
+   }
+  ],
+  "match_count": 21727476,
+  "subreddit_count": 149065,
+  "source_labels": [
+   "colloquial",
+   "slang"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 9,
+  "support_score": 6.471557,
+  "support_label": "keep",
+  "support_rank": 11
+ },
+ {
+  "normalized_word": "really",
+  "surface_forms": [
+   "really"
+  ],
+  "definitions": [
+   {
+    "word": "really",
+    "definition_en": "Very (modifying an adjective); very much (modifying a verb).",
+    "example_en": "But ma, I really, really want to go to the show!",
+    "source_label": [
+     "informal"
+    ]
+   },
+   {
+    "word": "really",
+    "definition_en": "Indicating surprise at, or requesting confirmation of, some new information; to express skepticism.",
+    "example_en": "A: He won the Nobel Prize yesterday.",
+    "source_label": [
+     "informal"
+    ]
+   }
+  ],
+  "match_count": 21352110,
+  "subreddit_count": 150013,
+  "source_labels": [
+   "informal"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 6,
+  "support_score": 6.468117,
+  "support_label": "keep",
+  "support_rank": 12
+ },
+ {
+  "normalized_word": "com",
+  "surface_forms": [
+   "com"
+  ],
+  "definitions": [
+   {
+    "word": "com",
+    "definition_en": "; as in .com (the most known Internet top-level domain).",
+    "example_en": "",
+    "source_label": [
+     "internet"
+    ]
+   }
+  ],
+  "match_count": 21747229,
+  "subreddit_count": 140227,
+  "source_labels": [
+   "internet"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 1,
+  "support_score": 6.461176,
+  "support_label": "keep",
+  "support_rank": 13
+ },
+ {
+  "normalized_word": "still",
+  "surface_forms": [
+   "still"
+  ],
+  "definitions": [
+   {
+    "word": "still",
+    "definition_en": "A resident of the Falkland Islands.",
+    "example_en": "",
+    "source_label": [
+     "slang"
+    ]
+   }
+  ],
+  "match_count": 18994184,
+  "subreddit_count": 142242,
+  "source_labels": [
+   "slang"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 1,
+  "support_score": 6.428385,
+  "support_label": "keep",
+  "support_rank": 14
+ },
+ {
+  "normalized_word": "post",
+  "surface_forms": [
+   "post"
+  ],
+  "definitions": [
+   {
+    "word": "post",
+    "definition_en": "To publish (a message) to a newsgroup, forum, blog, etc.",
+    "example_en": "I couldn't figure it out, so I posted a question on the mailing list.",
+    "source_label": [
+     "internet"
+    ]
+   },
+   {
+    "word": "post",
+    "definition_en": "Post-production.",
+    "example_en": "",
+    "source_label": [
+     "informal"
+    ]
+   }
+  ],
+  "match_count": 19620734,
+  "subreddit_count": 134329,
+  "source_labels": [
+   "informal",
+   "internet"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 3,
+  "support_score": 6.426898,
+  "support_label": "keep",
+  "support_rank": 15
+ },
+ {
+  "normalized_word": "go",
+  "surface_forms": [
+   "go"
+  ],
+  "definitions": [
+   {
+    "word": "go",
+    "definition_en": "To proceed (especially to do something foolish).",
+    "example_en": "Why'd you have to go and do that?",
+    "source_label": [
+     "colloquial"
+    ]
+   },
+   {
+    "word": "go",
+    "definition_en": "To say (something, aloud or to oneself).",
+    "example_en": "I go, \"As if!\" And she was all like, \"Whatever!\"",
+    "source_label": [
+     "colloquial"
+    ]
+   }
+  ],
+  "match_count": 19232191,
+  "subreddit_count": 137740,
+  "source_labels": [
+   "colloquial",
+   "slang"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 8,
+  "support_score": 6.426043,
+  "support_label": "keep",
+  "support_rank": 16
+ },
+ {
+  "normalized_word": "way",
+  "surface_forms": [
+   "way"
+  ],
+  "definitions": [
+   {
+    "word": "way",
+    "definition_en": "Yes; it is true; it is possible.",
+    "example_en": "",
+    "source_label": [
+     "slang"
+    ]
+   },
+   {
+    "word": "way",
+    "definition_en": "Far.",
+    "example_en": "I used to live way over there.",
+    "source_label": [
+     "informal"
+    ]
+   }
+  ],
+  "match_count": 18928121,
+  "subreddit_count": 139669,
+  "source_labels": [
+   "informal",
+   "slang"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 4,
+  "support_score": 6.424306,
+  "support_label": "keep",
+  "support_rank": 17
+ },
+ {
+  "normalized_word": "got",
+  "surface_forms": [
+   "got"
+  ],
+  "definitions": [
+   {
+    "word": "got",
+    "definition_en": "Have/has.",
+    "example_en": "They got a new car.",
+    "source_label": [
+     "colloquial"
+    ]
+   }
+  ],
+  "match_count": 17411547,
+  "subreddit_count": 147931,
+  "source_labels": [
+   "colloquial"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 1,
+  "support_score": 6.412527,
+  "support_label": "keep",
+  "support_rank": 18
+ },
+ {
+  "normalized_word": "well",
+  "surface_forms": [
+   "well"
+  ],
+  "definitions": [
+   {
+    "word": "well",
+    "definition_en": "Very (as a general-purpose intensifier).",
+    "example_en": "",
+    "source_label": [
+     "slang"
+    ]
+   }
+  ],
+  "match_count": 17001179,
+  "subreddit_count": 143478,
+  "source_labels": [
+   "slang"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 1,
+  "support_score": 6.401003,
+  "support_label": "keep",
+  "support_rank": 19
+ },
+ {
+  "normalized_word": "yes",
+  "surface_forms": [
+   "yes"
+  ],
+  "definitions": [
+   {
+    "word": "yes",
+    "definition_en": "To agree with, affirm, approve.",
+    "example_en": "Did he yes the veto?",
+    "source_label": [
+     "colloquial"
+    ]
+   },
+   {
+    "word": "yes",
+    "definition_en": "To say .",
+    "example_en": "",
+    "source_label": [
+     "colloquial"
+    ]
+   }
+  ],
+  "match_count": 14734252,
+  "subreddit_count": 156053,
+  "source_labels": [
+   "colloquial",
+   "slang"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 3,
+  "support_score": 6.378307,
+  "support_label": "keep",
+  "support_rank": 20
+ },
+ {
+  "normalized_word": "first",
+  "surface_forms": [
+   "first"
+  ],
+  "definitions": [
+   {
+    "word": "first",
+    "definition_en": "A first-class honours degree.",
+    "example_en": "",
+    "source_label": [
+     "colloquial"
+    ]
+   },
+   {
+    "word": "first",
+    "definition_en": "A first-edition copy of some publication.",
+    "example_en": "",
+    "source_label": [
+     "colloquial"
+    ]
+   }
+  ],
+  "match_count": 16143145,
+  "subreddit_count": 130544,
+  "source_labels": [
+   "colloquial"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 2,
+  "support_score": 6.371097,
+  "support_label": "keep",
+  "support_rank": 21
+ },
+ {
+  "normalized_word": "subreddit",
+  "surface_forms": [
+   "subreddit"
+  ],
+  "definitions": [
+   {
+    "word": "subreddit",
+    "definition_en": "Any of the subforums, generally intended for discussion of a specific topic, on the web site.",
+    "example_en": "",
+    "source_label": [
+     "internet"
+    ]
+   }
+  ],
+  "match_count": 23467733,
+  "subreddit_count": 73525,
+  "source_labels": [
+   "internet"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 1,
+  "support_score": 6.368859,
+  "support_label": "keep",
+  "support_rank": 22
+ },
+ {
+  "normalized_word": "back",
+  "surface_forms": [
+   "back"
+  ],
+  "definitions": [
+   {
+    "word": "back",
+    "definition_en": "Large and attractive buttocks.",
+    "example_en": "",
+    "source_label": [
+     "slang"
+    ]
+   },
+   {
+    "word": "back",
+    "definition_en": "Effort, usually physical.",
+    "example_en": "Put some back into it!",
+    "source_label": [
+     "slang"
+    ]
+   }
+  ],
+  "match_count": 15371934,
+  "subreddit_count": 133024,
+  "source_labels": [
+   "slang"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 2,
+  "support_score": 6.36161,
+  "support_label": "keep",
+  "support_rank": 23
+ },
+ {
+  "normalized_word": "contact",
+  "surface_forms": [
+   "contact"
+  ],
+  "definitions": [
+   {
+    "word": "contact",
+    "definition_en": "A contact lens.",
+    "example_en": "",
+    "source_label": [
+     "informal"
+    ]
+   },
+   {
+    "word": "contact",
+    "definition_en": "Contact juggling.",
+    "example_en": "I bought myself a new contact ball last week",
+    "source_label": [
+     "informal"
+    ]
+   }
+  ],
+  "match_count": 23211982,
+  "subreddit_count": 69301,
+  "source_labels": [
+   "informal"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 2,
+  "support_score": 6.355726,
+  "support_label": "keep",
+  "support_rank": 24
+ },
+ {
+  "normalized_word": "new",
+  "surface_forms": [
+   "new"
+  ],
+  "definitions": [
+   {
+    "word": "new",
+    "definition_en": "A naval cadet who has just embarked on training.",
+    "example_en": "",
+    "source_label": [
+     "slang"
+    ]
+   }
+  ],
+  "match_count": 14759987,
+  "subreddit_count": 127417,
+  "source_labels": [
+   "slang"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 1,
+  "support_score": 6.343544,
+  "support_label": "keep",
+  "support_rank": 25
+ },
+ {
+  "normalized_word": "action",
+  "surface_forms": [
+   "action"
+  ],
+  "definitions": [
+   {
+    "word": "action",
+    "definition_en": "Sexual intercourse.",
+    "example_en": "She gave him some action.",
+    "source_label": [
+     "slang"
+    ]
+   }
+  ],
+  "match_count": 22761111,
+  "subreddit_count": 65297,
+  "source_labels": [
+   "slang"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 1,
+  "support_score": 6.340276,
+  "support_label": "keep",
+  "support_rank": 26
+ },
+ {
+  "normalized_word": "never",
+  "surface_forms": [
+   "never"
+  ],
+  "definitions": [
+   {
+    "word": "never",
+    "definition_en": "Negative particle (used to negate verbs in the simple past tense; also used absolutely).",
+    "example_en": "The police say I stole the car, but I never did it.",
+    "source_label": [
+     "colloquial"
+    ]
+   }
+  ],
+  "match_count": 14902228,
+  "subreddit_count": 122546,
+  "source_labels": [
+   "colloquial"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 1,
+  "support_score": 6.339272,
+  "support_label": "keep",
+  "support_rank": 27
+ },
+ {
+  "normalized_word": "reddit",
+  "surface_forms": [
+   "Reddit"
+  ],
+  "definitions": [
+   {
+    "word": "Reddit",
+    "definition_en": "An American social news aggregation, content rating, and discussion website.",
+    "example_en": "",
+    "source_label": [
+     "internet"
+    ]
+   },
+   {
+    "word": "Reddit",
+    "definition_en": "To mention on the website Reddit.",
+    "example_en": "",
+    "source_label": [
+     "internet slang"
+    ]
+   }
+  ],
+  "match_count": 16080553,
+  "subreddit_count": 109295,
+  "source_labels": [
+   "colloquial",
+   "internet",
+   "internet slang",
+   "slang"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 6,
+  "support_score": 6.339222,
+  "support_label": "keep",
+  "support_rank": 28
+ },
+ {
+  "normalized_word": "take",
+  "surface_forms": [
+   "take"
+  ],
+  "definitions": [
+   {
+    "word": "take",
+    "definition_en": "To buy.",
+    "example_en": "take a ticket",
+    "source_label": [
+     "informal"
+    ]
+   },
+   {
+    "word": "take",
+    "definition_en": "To give or deliver (a blow, to someone); to strike or hit.",
+    "example_en": "He took me a blow on the head.",
+    "source_label": [
+     "slang"
+    ]
+   }
+  ],
+  "match_count": 14319041,
+  "subreddit_count": 126465,
+  "source_labels": [
+   "informal",
+   "slang"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 2,
+  "support_score": 6.334338,
+  "support_label": "keep",
+  "support_rank": 29
+ },
+ {
+  "normalized_word": "something",
+  "surface_forms": [
+   "something"
+  ],
+  "definitions": [
+   {
+    "word": "something",
+    "definition_en": "A quality to a moderate degree.",
+    "example_en": "The performance was something of a disappointment.",
+    "source_label": [
+     "colloquial"
+    ]
+   },
+   {
+    "word": "something",
+    "definition_en": "A talent or quality that is difficult to specify.",
+    "example_en": "She has a certain something.",
+    "source_label": [
+     "colloquial"
+    ]
+   }
+  ],
+  "match_count": 14414805,
+  "subreddit_count": 124098,
+  "source_labels": [
+   "colloquial"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 3,
+  "support_score": 6.332793,
+  "support_label": "keep",
+  "support_rank": 30
+ },
+ {
+  "normalized_word": "greenlight",
+  "surface_forms": [
+   "greenlight"
+  ],
+  "definitions": [
+   {
+    "word": "greenlight",
+    "definition_en": "To approve; to permit to proceed.",
+    "example_en": "",
+    "source_label": [
+     "informal"
+    ]
+   },
+   {
+    "word": "greenlight",
+    "definition_en": "To approve or requisition the harming or death of; to put a hit out on.",
+    "example_en": "",
+    "source_label": [
+     "slang"
+    ]
+   }
+  ],
+  "match_count": 6516,
+  "subreddit_count": 2533,
+  "source_labels": [
+   "informal",
+   "slang"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 2,
+  "support_score": 3.649951,
+  "support_label": "gray_zone",
+  "support_rank": 6424
+ },
+ {
+  "normalized_word": "pussy out",
+  "surface_forms": [
+   "pussy out"
+  ],
+  "definitions": [
+   {
+    "word": "pussy out",
+    "definition_en": "To fail to do something because of cowardice.",
+    "example_en": "",
+    "source_label": [
+     "slang"
+    ]
+   }
+  ],
+  "match_count": 5876,
+  "subreddit_count": 2956,
+  "source_labels": [
+   "slang"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 1,
+  "support_score": 3.649834,
+  "support_label": "gray_zone",
+  "support_rank": 6425
+ },
+ {
+  "normalized_word": "handball",
+  "surface_forms": [
+   "handball"
+  ],
+  "definitions": [
+   {
+    "word": "handball",
+    "definition_en": "To insert a hand into someone's anus.",
+    "example_en": "",
+    "source_label": [
+     "slang"
+    ]
+   }
+  ],
+  "match_count": 11117,
+  "subreddit_count": 1135,
+  "source_labels": [
+   "slang"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 1,
+  "support_score": 3.649767,
+  "support_label": "gray_zone",
+  "support_rank": 6426
+ },
+ {
+  "normalized_word": "pelt",
+  "surface_forms": [
+   "pelt"
+  ],
+  "definitions": [
+   {
+    "word": "pelt",
+    "definition_en": "Human skin, especially when bare; also, a person's hair.",
+    "example_en": "",
+    "source_label": [
+     "informal"
+    ]
+   }
+  ],
+  "match_count": 7173,
+  "subreddit_count": 2190,
+  "source_labels": [
+   "informal"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 1,
+  "support_score": 3.649714,
+  "support_label": "gray_zone",
+  "support_rank": 6427
+ },
+ {
+  "normalized_word": "we live in a society",
+  "surface_forms": [
+   "we live in a society"
+  ],
+  "definitions": [
+   {
+    "word": "we live in a society",
+    "definition_en": "the mores of society are irrational, hypocritical or otherwise flawed",
+    "example_en": "",
+    "source_label": [
+     "internet slang"
+    ]
+   }
+  ],
+  "match_count": 6310,
+  "subreddit_count": 2651,
+  "source_labels": [
+   "internet slang"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 1,
+  "support_score": 3.649488,
+  "support_label": "gray_zone",
+  "support_rank": 6428
+ },
+ {
+  "normalized_word": "front bumper",
+  "surface_forms": [
+   "front bumper"
+  ],
+  "definitions": [
+   {
+    "word": "front bumper",
+    "definition_en": "A woman's breast.",
+    "example_en": "While she leaned over the sputtering engine, searching for the problem, the other mechanics were instead riveted to her magnificent front bumpers, glistening with beads of sweat.",
+    "source_label": [
+     "slang"
+    ]
+   }
+  ],
+  "match_count": 8939,
+  "subreddit_count": 1571,
+  "source_labels": [
+   "slang"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 1,
+  "support_score": 3.649384,
+  "support_label": "gray_zone",
+  "support_rank": 6429
+ },
+ {
+  "normalized_word": "stackable",
+  "surface_forms": [
+   "stackable"
+  ],
+  "definitions": [
+   {
+    "word": "stackable",
+    "definition_en": "Capable of being combined with others on a single purchase.",
+    "example_en": "",
+    "source_label": [
+     "colloquial"
+    ]
+   }
+  ],
+  "match_count": 6788,
+  "subreddit_count": 2373,
+  "source_labels": [
+   "colloquial"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 1,
+  "support_score": 3.649276,
+  "support_label": "gray_zone",
+  "support_rank": 6430
+ },
+ {
+  "normalized_word": "roomie",
+  "surface_forms": [
+   "roomie"
+  ],
+  "definitions": [
+   {
+    "word": "roomie",
+    "definition_en": "A roommate.",
+    "example_en": "",
+    "source_label": [
+     "informal"
+    ]
+   }
+  ],
+  "match_count": 6831,
+  "subreddit_count": 2347,
+  "source_labels": [
+   "informal"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 1,
+  "support_score": 3.649008,
+  "support_label": "gray_zone",
+  "support_rank": 6431
+ },
+ {
+  "normalized_word": "crackpot",
+  "surface_forms": [
+   "crackpot"
+  ],
+  "definitions": [
+   {
+    "word": "crackpot",
+    "definition_en": "An eccentric, crazy or foolish person.",
+    "example_en": "Time will tell whether he is a crackpot or a genius for promoting that sort of idea.",
+    "source_label": [
+     "informal"
+    ]
+   },
+   {
+    "word": "crackpot",
+    "definition_en": "Someone addicted to crack cocaine (i.e. a drug addict).",
+    "example_en": "",
+    "source_label": [
+     "informal"
+    ]
+   }
+  ],
+  "match_count": 6649,
+  "subreddit_count": 2444,
+  "source_labels": [
+   "informal"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 3,
+  "support_score": 3.649005,
+  "support_label": "gray_zone",
+  "support_rank": 6432
+ },
+ {
+  "normalized_word": "filo",
+  "surface_forms": [
+   "Filo"
+  ],
+  "definitions": [
+   {
+    "word": "Filo",
+    "definition_en": "A Filipino.",
+    "example_en": "",
+    "source_label": [
+     "informal"
+    ]
+   }
+  ],
+  "match_count": 9359,
+  "subreddit_count": 1462,
+  "source_labels": [
+   "informal"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 1,
+  "support_score": 3.648863,
+  "support_label": "gray_zone",
+  "support_rank": 6433
+ },
+ {
+  "normalized_word": "sixer",
+  "surface_forms": [
+   "Sixer",
+   "sixer"
+  ],
+  "definitions": [
+   {
+    "word": "sixer",
+    "definition_en": "A shot in which the ball passes over the boundary without touching the ground, for which the batting team is awarded six runs.",
+    "example_en": "",
+    "source_label": [
+     "colloquial"
+    ]
+   },
+   {
+    "word": "sixer",
+    "definition_en": "A prison sentence of six months.",
+    "example_en": "",
+    "source_label": [
+     "slang"
+    ]
+   }
+  ],
+  "match_count": 3067,
+  "subreddit_count": 587,
+  "source_labels": [
+   "colloquial",
+   "informal",
+   "slang"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 4,
+  "support_score": 3.199864,
+  "support_label": "prune",
+  "support_rank": 8902
+ },
+ {
+  "normalized_word": "chinese medicine",
+  "surface_forms": [
+   "Chinese medicine"
+  ],
+  "definitions": [
+   {
+    "word": "Chinese medicine",
+    "definition_en": "traditional Chinese medicine",
+    "example_en": "",
+    "source_label": [
+     "informal"
+    ]
+   }
+  ],
+  "match_count": 2249,
+  "subreddit_count": 935,
+  "source_labels": [
+   "informal"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 1,
+  "support_score": 3.19982,
+  "support_label": "prune",
+  "support_rank": 8903
+ },
+ {
+  "normalized_word": "squib",
+  "surface_forms": [
+   "squib"
+  ],
+  "definitions": [
+   {
+    "word": "squib",
+    "definition_en": "To throw squibs; to utter sarcastic or severe reflections; to contend in petty dispute.",
+    "example_en": "to squib a little debate",
+    "source_label": [
+     "colloquial"
+    ]
+   }
+  ],
+  "match_count": 2637,
+  "subreddit_count": 736,
+  "source_labels": [
+   "colloquial"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 1,
+  "support_score": 3.199752,
+  "support_label": "prune",
+  "support_rank": 8904
+ },
+ {
+  "normalized_word": "woke mind virus",
+  "surface_forms": [
+   "woke mind virus"
+  ],
+  "definitions": [
+   {
+    "word": "woke mind virus",
+    "definition_en": "Leftist, progressive, or social justice-supporting movements that are perceived by opponents to be fanatical or corrupting society.",
+    "example_en": "",
+    "source_label": [
+     "slang"
+    ]
+   },
+   {
+    "word": "woke mind virus",
+    "definition_en": "Perceived left-wing threats to freedom of speech or conservative values.",
+    "example_en": "",
+    "source_label": [
+     "slang"
+    ]
+   }
+  ],
+  "match_count": 2242,
+  "subreddit_count": 939,
+  "source_labels": [
+   "slang"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 2,
+  "support_score": 3.199749,
+  "support_label": "prune",
+  "support_rank": 8905
+ },
+ {
+  "normalized_word": "granddaddy",
+  "surface_forms": [
+   "granddaddy"
+  ],
+  "definitions": [
+   {
+    "word": "granddaddy",
+    "definition_en": "A grandfather.",
+    "example_en": "",
+    "source_label": [
+     "informal"
+    ]
+   },
+   {
+    "word": "granddaddy",
+    "definition_en": "Something that is the greatest or most significant of its kind.",
+    "example_en": "",
+    "source_label": [
+     "informal"
+    ]
+   }
+  ],
+  "match_count": 1949,
+  "subreddit_count": 1157,
+  "source_labels": [
+   "informal"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 2,
+  "support_score": 3.199504,
+  "support_label": "prune",
+  "support_rank": 8906
+ },
+ {
+  "normalized_word": "run into the ground",
+  "surface_forms": [
+   "run into the ground"
+  ],
+  "definitions": [
+   {
+    "word": "run into the ground",
+    "definition_en": "To mismanage to the point of ruin.",
+    "example_en": "Although he has an MBA from Harvard, he still ran the company into the ground.",
+    "source_label": [
+     "informal"
+    ]
+   },
+   {
+    "word": "run into the ground",
+    "definition_en": "To wear out, especially through excessive use.",
+    "example_en": "I figure this car has a few more years left in it and I intend to run it into the ground before purchasing another.",
+    "source_label": [
+     "informal"
+    ]
+   }
+  ],
+  "match_count": 1958,
+  "subreddit_count": 1148,
+  "source_labels": [
+   "informal"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 3,
+  "support_score": 3.199349,
+  "support_label": "prune",
+  "support_rank": 8907
+ },
+ {
+  "normalized_word": "stupids",
+  "surface_forms": [
+   "stupids"
+  ],
+  "definitions": [
+   {
+    "word": "stupids",
+    "definition_en": "Stupidity; an instance of foolishness.",
+    "example_en": "I had an attack of the stupids and accidentally locked myself out of the house.",
+    "source_label": [
+     "slang"
+    ]
+   }
+  ],
+  "match_count": 1967,
+  "subreddit_count": 1140,
+  "source_labels": [
+   "slang"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 1,
+  "support_score": 3.199329,
+  "support_label": "prune",
+  "support_rank": 8908
+ },
+ {
+  "normalized_word": "canaries",
+  "surface_forms": [
+   "Canaries"
+  ],
+  "definitions": [
+   {
+    "word": "Canaries",
+    "definition_en": "The Canary Islands: .",
+    "example_en": "",
+    "source_label": [
+     "informal"
+    ]
+   }
+  ],
+  "match_count": 2214,
+  "subreddit_count": 954,
+  "source_labels": [
+   "informal"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 1,
+  "support_score": 3.199226,
+  "support_label": "prune",
+  "support_rank": 8909
+ },
+ {
+  "normalized_word": "servent",
+  "surface_forms": [
+   "servent"
+  ],
+  "definitions": [
+   {
+    "word": "servent",
+    "definition_en": "A peer-to-peer network node which has the functionality of both server and client.",
+    "example_en": "",
+    "source_label": [
+     "internet"
+    ]
+   }
+  ],
+  "match_count": 2927,
+  "subreddit_count": 626,
+  "source_labels": [
+   "internet"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 1,
+  "support_score": 3.19885,
+  "support_label": "prune",
+  "support_rank": 8910
+ },
+ {
+  "normalized_word": "fuckmeat",
+  "surface_forms": [
+   "fuckmeat"
+  ],
+  "definitions": [
+   {
+    "word": "fuckmeat",
+    "definition_en": "human beings regarded as objects for sexual intercourse",
+    "example_en": "",
+    "source_label": [
+     "slang"
+    ]
+   }
+  ],
+  "match_count": 2698,
+  "subreddit_count": 703,
+  "source_labels": [
+   "slang"
+  ],
+  "source_files": [
+   "RC_2025-09.zst",
+   "RC_2025-12.zst"
+  ],
+  "sense_count": 1,
+  "support_score": 3.197751,
+  "support_label": "prune",
+  "support_rank": 8911
+ }
+]

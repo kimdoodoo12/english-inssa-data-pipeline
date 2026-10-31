@@ -59,7 +59,7 @@
 
 | 전처리 항목 | 처리 목적 | 실제 처리 방식(코드 기준) | 관련 코드 파일 | 보고서용 설명 |
 |---|---|---|---|---|
-| **불필요 후보 제거(필터링)** | 비슬랭·저빈도 후보 제거 | Reddit 매칭 이력 없음 / stopword 단독 / 기능어 구문 블랙리스트 / 기본 `match_count < 200` 제거 | `filter_matched_candidates.py` | 사전상 후보 중 실제로 거의 안 쓰이는 표현을 1차 제거 |
+| **불필요 후보 제거(필터링)** | 비슬랭·저빈도 후보 제거 | Reddit 매칭 이력 없음 / stopword 단독 / 기능어 구문 블랙리스트 / 기본 `match_count <= 200` 제거 | `filter_matched_candidates.py` | 사전상 후보 중 실제로 거의 안 쓰이는 표현을 1차 제거 |
 | **통계 기반 선별(랭킹)** | 사용량 신뢰도 점수화 | `support_score = 0.6·log10(1+match_count) + 0.4·log10(1+subreddit_count)`, keep(≥3.65)/gray_zone/prune 분류 | `rank_slang_candidates.py` | keep 후보 6,423개만 다음 단계로 통과 |
 | **중복 문맥 제거** | 동일 문맥 중복 수집 방지 | `context_id` 해시 기준 중복 제거, Reservoir Sampling으로 단어별 문맥 수 상한 | `reddit_context_cache_builder.py` | 단어별 문맥 표본의 다양성·균형 확보 |
 | **문맥 부족 데이터 제거** | 판정 근거 부족 단어 제거 | 캐시 문맥 < 60개이면 `drop`, 초기 60개 판정 결과 슬랭 0건이면 `drop` | `reddit_slang_llm_judger.py` | 근거가 부족한 단어를 데이터에서 배제 |
