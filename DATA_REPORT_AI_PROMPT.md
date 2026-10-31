@@ -30,7 +30,7 @@ AI(OpenAI GPT, 코드 기본 모델 `gpt-4.1-nano`, `temperature=0`, JSON 응답
 | `add_korean_definitions.py` | 가공 | 영어 정의를 **자연스러운 한국어 정의로 번역** + **학습 카테고리 분류** | 단어 + 영어 정의 | 한국어 정의(`definition_ko`), 카테고리(`category`) |
 | `generate_examples.py` | 가공 | 학습자용 **영어 예문과 한국어 번역 생성** | 단어 + 영어/한국어 정의 + 카테고리 | 예문(`example_en`), 예문 번역(`example_ko`) |
 
-핵심은, **AI가 데이터를 "만들어낸" 것이 아니라, 실제 Reddit 사용 데이터를 근거로 "판정하고 정리하는" 역할을 했다**는 점이다. 특히 슬랭 판정과 영어 정의 생성은 모두 "Reddit에서 실제로 수집한 문맥을 근거로 하라"는 지시를 프롬프트에 명시하고 있어, AI의 임의 생성을 줄이고 실제 데이터에 기반하도록 설계되어 있다.
+핵심은, **AI가 후보 단어를 새로 만들어낸 것이 아니라, 실제 Reddit 문맥을 입력으로 받아 "판정하고 정리하는" 역할을 했다**는 점이다. 다만 프롬프트의 근거 지시 강도는 단계마다 다르다. 영어 정의 생성은 "제공된 Reddit 예시에 엄격히 근거하라(`based strictly on the examples`)"고 지시하되 예시가 모호하면 모델 자신의 지식을 쓰도록 허용한다. 슬랭 판정은 Reddit 문맥을 보여주되 "모델 자신의 지식에 근거해(`based on your own knowledge`) 판단하라"고 지시한다. 즉 판정은 문맥을 입력으로 쓰지만 문맥만으로 결정하도록 제한하지는 않는다.
 
 AI를 사용하지 않은 단계(규칙·통계·사람 판단만 사용): Wiktionary 파싱, Reddit 빈도 집계, 규칙 기반 필터링, 통계 점수 랭킹, 문맥 수집, 최종 우선순위 계산, 수동 검수(`review_tool.py`).
 
@@ -65,6 +65,8 @@ For each context [1]~[{n}]:
 Return JSON only: {"results": [{"is_slang": true}, ...]}
 ```
 
+> 코드 동작: 각 문맥은 앞 400자까지만 전달한다. 처음 60개를 한 번에 판정하고, 이후에는 20개씩 추가 판정한다. 응답은 JSON 모드(`response_format={"type": "json_object"}`)로 받으며 JSON 스키마로 검증하지는 않는다. 응답 항목이 모자라면 `is_slang: false`로 채운다.
+
 ### 3.2 영어 슬랭 정의·유형 생성 프롬프트 — `reddit_slang_llm_judger.py`
 
 **역할(System)**: "한국어 학습 앱을 위한 영어 슬랭 사전 편집자" 역할을 부여하고, 제공된 Reddit 예시에 근거하여 간결한 슬랭 정의(1~2문장)와 슬랭 유형 분류를 생성하게 한다.
@@ -79,7 +81,7 @@ Reply with JSON only.
 
 [User]
 Word: "{word}"
-Slang usage rate: {slang_ratio}% in Reddit
+Slang usage rate: {slang_ratio, 예: 83%} in Reddit
 
 Reddit examples (slang usage only):
 [1] {slang_context_1}
@@ -91,6 +93,8 @@ Also categorize: "internet_slang" (memes/online), "aave" (African American Verna
 "general_slang" (common spoken slang), or "colloquial" (informal but not typical slang).
 Return JSON only: {"definition_en": "...", "slang_category": "internet_slang|aave|general_slang|colloquial"}
 ```
+
+> 코드 동작: 슬랭으로 판정된 문맥 중 앞쪽 최대 8개만(각 300자까지) 예시로 넣는다. 비율은 `{slang_ratio:.0%}` 형식(소수점 없는 퍼센트)으로 들어간다. 반환된 `slang_category`가 4개 값에 없으면 `None`으로 저장한다.
 
 ### 3.3 한국어 정의·카테고리 생성 프롬프트 — `add_korean_definitions.py`
 
@@ -124,11 +128,13 @@ Process these slang words. Return JSON: {"results": [{"word": "...", "definition
 ...
 ```
 
+> 후처리: 응답의 `category`는 `validate_categories()`로 14개 허용 어휘에 맞춘다. 알려진 별칭은 허용 어휘로 바꾸고, 그 밖의 값은 버리며, 중복을 제거하고 최대 3개로 자른다. 단어는 20개씩 배치로 보낸다.
+
 > 참고: 동일 스크립트에는 카테고리만 다시 분류하는 재분류 프롬프트(`--recategorize` 옵션)도 존재한다. 이 프롬프트는 "줄임말·약어"를 판별하는 규칙(예: 'acronym for', 'stands for', 'Greatest Of All Time' 등)을 추가로 명시하고 있다.
 
 ### 3.4 학습용 예문 생성 프롬프트 — `generate_examples.py`
 
-**역할(System)**: "한국 성인 영어 슬랭 학습자를 위한 학습 콘텐츠 편집자" 역할을 부여하고, 20단어 이하의 자연스러운 일상 대화체 영어 예문 1개와 그 한국어 번역을 생성하게 한다. 비속어·성적·폭력적 내용 금지, 슬랭 단어가 문장에 반드시 포함되고 의미가 드러나야 한다는 규칙이 포함되어 있다.
+**역할(System)**: "한국 성인 영어 슬랭 학습자를 위한 학습 콘텐츠 편집자" 역할을 부여하고, 20단어 미만(`under 20 words`)의 자연스러운 일상 대화체 영어 예문 1개와 그 한국어 번역을 생성하게 한다. 비속어·성적·폭력적 내용 금지, 슬랭 단어가 문장에 반드시 포함되고 의미가 드러나야 한다는 규칙이 포함되어 있다.
 
 ```text
 [System]
@@ -151,6 +157,8 @@ Process these slang words. Return JSON: {"results": [{"word": "...", "example_en
 ...
 ```
 
+> 코드 동작: 입력은 `service_public_approved.json`(승인 384개)이고 20개씩 배치로 보낸다. 진행분은 `example_gen_progress.jsonl`에 배치마다 추가 저장하며, `--reset`으로 초기화한다.
+
 ---
 
 ## 4. "대표 프롬프트 예시"를 새로 만들어도 되는가에 대한 판단
@@ -172,7 +180,7 @@ Process these slang words. Return JSON: {"results": [{"word": "...", "example_en
 ### 5.1 그림 (Figure)
 
 - **AI 활용 위치 표시 흐름도**: 전체 파이프라인 중 AI가 개입하는 3개 지점(슬랭 판정 / 한국어 정의·카테고리 / 예문 생성)을 색으로 강조한 다이어그램. "수집·정제는 규칙·통계, 가공·검증은 AI"라는 역할 분담을 한눈에 보여줄 수 있다.
-- **슬랭 판정 의사결정 흐름도**: 초기 60개 문맥 판정 → K=0이면 제외(drop), K≥15이면 채택(enough_evidence), 그 사이면 20개씩 추가 판정 → 최종 채택/보류(holdout)로 이어지는 판정 로직. AI가 "한 번에 생성"이 아니라 "근거를 누적해 판단"하는 구조임을 강조할 수 있다.
+- **슬랭 판정 의사결정 흐름도**: 초기 60개 문맥 판정 → K=0이면 제외(drop), K≥15이면 채택(enough_evidence), 그 사이면 20개씩 추가 판정 → 최종 채택/보류(holdout)로 이어지는 판정 로직. AI가 "한 번에 생성"이 아니라 "근거를 누적해 판단"하는 구조임을 강조할 수 있다. 실제 판정 결과는 drop 3,085 / enough_evidence 2,412 / holdout 926이며, holdout 중 `slang_hits >= 3` AND `slang_ratio >= 1/60`을 만족하지 못한 45개를 제외해 최종 3,293개가 된다. 초기 60개는 실제 슬랭 비율이 5%라고 가정하면 슬랭이 하나도 안 나올 확률이 0.95^60 ≈ 4.6%라는 점에서 정한 값이다(실측이 아닌 가정, 작성자 설명).
 
 ### 5.2 표 (Table)
 
@@ -189,8 +197,8 @@ Process these slang words. Return JSON: {"results": [{"word": "...", "example_en
 
 ### 5.3 코드 설명 (보고서용 간략 서술)
 
-- **AI 호출 공통 설정 설명**: "모든 AI 호출은 `temperature=0`(무작위성 제거)과 JSON 형식 강제(`response_format`) 옵션을 사용하여, 결과의 일관성과 후처리 안정성을 확보하였다." — 이는 세 스크립트 모두에서 코드로 확인됨.
-- **배치 처리 설명**: 한국어 정의·예문 생성은 단어를 묶음(배치)으로 처리하여 API 호출 효율을 높였다. (`add_korean_definitions.py`, `generate_examples.py`에서 배치 단위 처리 확인)
+- **AI 호출 공통 설정 설명**: "모든 AI 호출은 `temperature=0`(무작위성 제거)과 JSON 모드(`response_format=json_object`) 옵션을 사용하여, 결과의 일관성과 후처리 안정성을 확보하였다." — 이는 세 스크립트 모두에서 코드로 확인됨. 스키마 수준의 검증은 하지 않으므로 "JSON 스키마 강제"라고 쓰지 않는다.
+- **배치 처리 설명**: 한국어 정의·예문 생성은 단어를 20개씩 묶음(배치)으로 처리하여 API 호출 효율을 높였다. (`add_korean_definitions.py`, `generate_examples.py`에서 배치 단위 처리 확인) 슬랭 판정은 단어별로 호출하며 문맥을 20개 단위로 나눠 보낸다.
 
 ### 5.4 프롬프트 예시 (실행 예시)
 
@@ -201,12 +209,12 @@ Process these slang words. Return JSON: {"results": [{"word": "...", "example_en
 → (AI 판정) Reddit 문맥 다수에서 슬랭/비격식 사용 확인
 → (AI 생성) 영어 정의: "To send a private message ... privately."
             slang_category: "internet_slang"
-→ (AI 번역) 한국어 정의: "온라인에서 누군가에게 비공개 메시지를 보내는 것 ..."
+→ (AI 번역) 한국어 정의: "온라인에서 누군가에게 비공개 메시지 또는 다이렉트 메시지를 보내는 것, 주로 ..."
 → (AI 생성) 예문: "I just sent you a dm about the meetup."
             번역: "모임 관련해서 방금 너한테 다이렉트 메시지 보냈어."
 ```
 
-> 위 예시의 정의·예문 값은 실제 산출물 `service_public_approved.json`의 `dm` 레코드에서 가져온 것이다.
+> 위 예시의 정의·예문 값은 실제 산출물 `service_public_approved.json`의 `dm` 레코드에서 가져온 것이다(`slang_category`는 `final_dataset.jsonl`의 값). 판정 결과는 60개 문맥 중 50개가 슬랭 사용이었다(`slang_ratio` 83.3%).
 
 ---
 
@@ -214,7 +222,7 @@ Process these slang words. Return JSON: {"results": [{"word": "...", "example_en
 
 - 데이터 **수집·정제**는 규칙과 통계 기반으로 자동화되었고, **AI는 검증과 가공 단계의 언어적 판단**(슬랭 여부 판정, 정의·번역·카테고리·예문 생성)에 한정해 활용되었다.
 - AI 사용 지점의 프롬프트는 모두 코드에 원문이 남아 있어, 보고서에 **실제 프롬프트를 그대로 인용**할 수 있다(새로 만들 필요 없음).
-- 모든 AI 호출은 `temperature=0`과 JSON 강제 출력으로 일관성을 확보했고, 슬랭 판정·정의 생성은 "Reddit 실제 문맥을 근거로 하라"는 지시를 명시해 데이터 기반 생성이 되도록 설계되었다.
+- 모든 AI 호출은 `temperature=0`과 JSON 강제 출력으로 일관성을 확보했고, 슬랭 판정과 영어 정의 생성은 Reddit 실제 문맥을 입력으로 받도록 설계되었다(정의 생성은 예시에 엄격히 근거하라는 지시가 있고, 판정은 모델 자신의 지식을 병용한다).
 
 ### `[확인 필요]` 목록
 1. 실제 데이터 생성에 사용된 GPT 모델 버전(코드 기본값 `gpt-4.1-nano`이나 실행 시 변경 가능)

@@ -14,7 +14,7 @@
 
 1. Wiktionary에서 슬랭 후보 단어와 영어 정의를 추출한다.
 2. Reddit 댓글 덤프에서 후보 단어의 실제 사용 빈도를 집계한다.
-3. 빈도와 분산 기준으로 후보를 1차 필터링한다.
+3. `match_count`·불용어·기능어 구문 규칙으로 후보를 1차 필터링하고(Stage 3), 빈도와 subreddit 분산으로 support score를 계산해 `keep` 후보를 고른다(Stage 4).
 4. Stage 6에서 `reddit_slang_llm_judger.py`가 Reddit 실제 문맥을 LLM으로 판정해, 해당 단어가 실제 슬랭/비격식 의미로 쓰였는지 확인한다.
 5. Stage 7에서 Stage 6 결과를 기반으로 최종 우선순위를 계산한다.
 6. 이후 한국어 정의, 서비스 카테고리, 학습용 예문을 추가하고 수동 검수로 공개 단어를 확정한다.
@@ -25,6 +25,8 @@
 pip install -r data_pipeline/requirements.txt   # mwparserfromhell, zstandard, openai
 export OPENAI_API_KEY=sk-...
 # 실행 위치: 저장소 루트 (스크립트 내 경로가 모두 data_pipeline/ 기준 상대경로)
+# Reddit 덤프:      환경변수 REDDIT_DUMP_PATHS (os.pathsep 구분, Windows ';' / POSIX ':')
+# Wiktionary 덤프:  환경변수 WIKTIONARY_DUMP_PATH
 ```
 
 ---
@@ -36,7 +38,7 @@ Stage 1  parse_wiktionary.py
          -> output/slang_raw.json
 
 Stage 2  parse_slang_raw.py
-         -> matched_candidates.json
+         -> matched_candidates.json  (실행 디렉터리 기준 상대경로)
 
 Stage 3  filter_matched_candidates.py
          -> data/filtered_candidates.json
@@ -58,6 +60,13 @@ Stage 7  rank_final_candidates.py
          -> output/ranked_candidates.jsonl
          -> Stage 6 수치 기반 최종 우선순위 계산
 
+후처리  build_final_dataset.py
+         -> output/final_dataset.jsonl
+         -> ranked_candidates + word_summary + context_judgments(슬랭 문맥)를 결합
+
+후처리  enrich_dataset.py
+         -> final_dataset.jsonl in-place 보강 (difficulty_tier 부여, 일부 정의 수동 패치, 예문 검증)
+
 후처리  add_korean_definitions.py
          -> final_dataset.jsonl에 definition_ko, category 추가
 
@@ -67,6 +76,20 @@ Stage 7  rank_final_candidates.py
 후처리  generate_examples.py
          -> 승인 단어에 example_en, example_ko 추가
 ```
+
+단계별 단어 수(퍼널):
+
+```text
+Wiktionary 정의 항목 44,033개 (고유 표제어 33,009개, 소문자 기준)
+ -> Stage 2  Reddit 매칭 29,123개 (정의 항목 40,058개) / 미매칭 3,735개
+ -> Stage 3  통과 15,198개 (정의 항목 24,166개) / 제거 13,925개
+ -> Stage 4  keep 6,423 / gray_zone 2,478 / prune 6,297
+ -> Stage 6  LLM 판정 drop 3,085 / 판정 통과 3,338 (enough_evidence 2,412 + holdout 926)
+ -> Stage 7  holdout 중 기준(hits >= 3 AND ratio >= 1/60) 미달 45개 제외 -> 최종(ranked) 3,293
+ -> 검수      approved 384 / pending 2,909
+```
+
+고유 표제어 수는 집계 기준에 따라 다르다: 소문자 기준 33,009, 정규화 후 32,858(= 매칭 29,123 + 미매칭 3,735). 정의 항목은 raw 44,033, 매칭 40,058 + 미매칭 3,943 = 44,001로 32건 차이가 나며 원인은 확인하지 못했다.
 
 ---
 
@@ -98,13 +121,14 @@ Stage 7  rank_final_candidates.py
 입력:
 
 - `data_pipeline/output/slang_raw.json`
-- Reddit comments `.zst` 파일 2개
+- Reddit comments `.zst` 파일 2개 (환경변수 `REDDIT_DUMP_PATHS`, 미지정 시 `data_pipeline/dump/RC_2025-09.zst`, `RC_2025-12.zst`)
 
 출력:
 
 - `matched_candidates.json`
 - `unmatched_candidates.json`
 - `candidate_usage_stats.json`
+- `data_pipeline/output/scan_stats.json` (스캔 규모 지표)
 
 처리 방식:
 
@@ -112,10 +136,11 @@ Stage 7  rank_final_candidates.py
 - Reddit JSONL을 zstandard 스트리밍으로 읽는다.
 - 댓글 body를 토큰화하고 후보 n-gram과 매칭한다.
 - 단어별 `match_count`, 등장 subreddit 샘플 등을 누적한다.
+- 결과: Reddit 매칭 29,123개(정의 항목 40,058개), 미매칭 3,735개.
 
 ### Stage 3: `filter_matched_candidates.py`
 
-**역할**: 통계 기반 1차 필터링으로 명백한 비슬랭 또는 너무 낮은 빈도 후보를 제거한다.
+**역할**: 규칙 기반 1차 필터링으로 불용어·기능어 구문 또는 너무 낮은 빈도 후보를 제거한다. 통계 모델은 쓰지 않는다.
 
 출력:
 
@@ -125,10 +150,21 @@ Stage 7  rank_final_candidates.py
 
 주요 제거 조건:
 
-- Reddit 매칭 이력이 없는 후보
-- stopword만으로 구성된 후보
-- 기능어 구문 블랙리스트에 해당하는 후보
-- 기본 기준 `match_count <= 200` (200 이하 제거)
+- `not_matched`: Reddit 매칭 이력이 없는 후보 (규칙은 있으나 입력이 매칭 항목뿐이라 실제 제거 0건)
+- `stopword_only`: stopword(179개)만으로 구성된 후보
+- `function_phrase_blacklist`: 기능어 구문 블랙리스트(20개 구문)에 해당하는 후보
+- `low_match_count_lte_200`: 기본 기준 `match_count <= 200` (200 이하 제거, `--match-threshold`로 변경 가능)
+
+결과 (`data/filter_summary.json` 기준):
+
+| 항목 | 표제어 | 정의 항목 |
+|---|---:|---:|
+| 입력 | 29,123 | 40,058 |
+| 통과 | 15,198 | 24,166 |
+| 제거 | 13,925 | 15,892 |
+
+제거 사유별 표제어 수: `match_count <= 200` 13,753 / stopword 173 / 기능어 구문 20.
+세 값의 합(13,946)이 제거 표제어 수보다 21 큰 것은 한 표제어가 두 사유에 동시에 해당한 경우가 21건 있기 때문이다.
 
 ### Stage 4: `rank_slang_candidates.py`
 
@@ -153,7 +189,14 @@ support_score = 0.6 * log10(1 + match_count)
 | `gray_zone` | `3.20 <= support_score < 3.65` |
 | `prune` | `support_score < 3.20` |
 
+결과: `keep` 6,423 / `gray_zone` 2,478 / `prune` 6,297 (합계 15,198).
 Stage 5 이후에는 `keep` 후보 6,423개만 사용한다.
+
+임계값·가중치 근거 (작성자 발표 자료 기준의 설계 설명이며, 코드·데이터로 재검증되지는 않는다):
+
+- `keep` 컷 3.65: 실제로 쓰이는 슬랭을 positive seed로 삼아 점수화한 뒤, 그 최저점보다 약간 낮게 설정했다. 3.20~3.65는 버리지 않고 `gray_zone`으로 보존한다.
+- 가중치 0.6 / 0.4: `match_count`를 subreddit 수보다 약간 더 중시하려는 설계 의도이며, 가중치 튜닝은 하지 않았다.
+- positive seed 목록은 저장소에 없다. 따라서 3.65라는 값을 이 저장소만으로 재현할 수는 없다.
 
 ### Stage 5: `reddit_context_cache_builder.py`
 
@@ -183,7 +226,8 @@ Stage 5 이후에는 `keep` 후보 6,423개만 사용한다.
 
 - Reddit `.zst` 파일 2개를 각각 별도 프로세스로 병렬 스캔한다.
 - 후보 단어가 포함된 댓글 문맥을 수집한다.
-- Reservoir Sampling, seed 42를 사용해 단어별 문맥 수를 제한한다.
+- Reservoir Sampling으로 단어별 문맥 수를 제한한다. 시드는 워커별 `42 + 파일 순번`, 두 파일 결과를 합치는 단계는 42다.
+- 각 워커는 모든 단어의 reservoir가 목표 수만큼 차면 그 시점에 스캔을 중단한다(조기 종료). 따라서 덤프 전체에서의 균등 확률 표본이 아니라, 스캔한 구간 안에서 뽑은 표본이다.
 - `context_id` 해시 기준으로 중복 문맥을 제거한다.
 
 ---
@@ -203,7 +247,7 @@ Stage 5 이후에는 `keep` 후보 6,423개만 사용한다.
 출력:
 
 - `data_pipeline/output/word_summary.jsonl`
-- `data_pipeline/output/context_judgments.jsonl`
+- `data_pipeline/output/context_judgments.jsonl` (`.gitignore` 대상, 저장소에 없음)
 
 모델:
 
@@ -229,6 +273,11 @@ Stage 5 이후에는 `keep` 후보 6,423개만 사용한다.
    - K < 15이면 holdout
 9. 슬랭으로 판정된 문맥만 모아 영어 정의와 slang_category를 생성한다.
 ```
+
+판정 시작·종료 기준의 근거 (작성자 발표 자료 기준의 설계 설명이며, 코드로 검증되는 값은 상수뿐이다):
+
+- 초기 60개: 슬랭 비율이 5%인 단어가 60개 중 슬랭 0건으로 나올 확률이 0.95^60 ≈ 4.6%가 되도록 보수적으로 가정했다.
+- `K_TARGET = 15`: 여러 뜻의 분포를 확인하기 위한 최소 증거로 잡은 값이다.
 
 상수:
 
@@ -265,6 +314,12 @@ Stage 5 이후에는 `keep` 후보 6,423개만 사용한다.
 | `drop` | 3,085 |
 | `enough_evidence` | 2,412 |
 | `holdout` | 926 |
+| 판정 통과 (`enough_evidence` + `holdout`) | 3,338 |
+
+`drop` 3,085건은 전부 초기 60개 판정에서 슬랭 0건(`sampled=60`, `slang_hits=0`)이었다. 예: `money`는 60개 중 슬랭 0건으로 drop, `cap`은 160개 중 17건으로 `enough_evidence`.
+`holdout` 926개 중 Stage 7의 포함 기준에 미달한 45개가 제외되어 최종 3,293개가 된다(5장).
+
+재실행 동작: 실행 시 `word_summary.jsonl`을 쓰기 모드(`"w"`)로 다시 열면서 기존 `drop` 행만 보존하고, `drop`이 아닌 단어(`enough_evidence`, `holdout`)는 다시 판정한다. `context_judgments.jsonl`도 쓰기 모드로 열리므로 재실행분의 판정만 남는다. 모든 단계가 재시작에 안전한 것은 아니다.
 
 ---
 
@@ -289,7 +344,9 @@ Stage 7에서는 AI를 새로 호출하지 않는다.
 필터 조건:
 
 - `decision == "drop"`은 제외한다.
-- `decision == "holdout"`은 `slang_hits >= 3`이고 `slang_ratio >= 1.67%`인 경우만 포함한다.
+- `decision == "holdout"`은 `slang_hits >= 3`이고 `slang_ratio >= 1/60` (코드상 `0.05 / 3`, 약 1.67%)인 경우만 포함한다.
+
+퍼널: 판정 통과 3,338개(`enough_evidence` 2,412 + `holdout` 926) -> holdout 기준 미달 45개 제외 -> 최종 3,293개(`enough_evidence` 2,412 + `holdout` 881). 3,293개는 LLM 판정 통과 수가 아니라 이 제외까지 마친 결과다.
 
 점수식:
 
@@ -312,7 +369,7 @@ priority_score = log10(1 + expected_capped) * (1 - penalty)
 
 최종 출력:
 
-- `output/ranked_candidates.jsonl`: 3,293개
+- `output/ranked_candidates.jsonl`: 3,293개 (holdout 기준 미달 45개 제외 후)
 
 ---
 
@@ -374,10 +431,10 @@ AI 사용:
 
 | 파일 | 개수 | 설명 |
 |---|---:|---|
-| `output/word_summary.jsonl` | 6,423 | Stage 6 LLM 판정 결과 |
-| `output/ranked_candidates.jsonl` | 3,293 | Stage 7 최종 후보 |
+| `output/word_summary.jsonl` | 6,423 | Stage 6 LLM 판정 결과 (판정 통과 3,338, drop 3,085) |
+| `output/ranked_candidates.jsonl` | 3,293 | Stage 7 최종 후보 (holdout 45개 제외 후) |
 | `output/final_dataset.jsonl` | 3,293 | 한국어 정의와 카테고리 포함 전체 데이터 |
-| `output/db_insert_draft.json` | 3,293 | `export_db.py` 산출. 초안 내보내기. **서비스 투입본 아님** — `example_en`이 AI 예문 생성 이전의 Reddit 원문이다 |
+| `output/db_insert_draft.json` | 3,293 | `export_db.py` 산출(스크립트 기본 출력 파일명은 `db_insert.json`이고, 저장소에는 `db_insert_draft.json`이라는 이름으로 올라가 있다). 초안 내보내기. **서비스 투입본 아님** — `example_en`이 AI 예문 생성 이전의 Reddit 원문이다 |
 | `output/service_public_approved.json` | 384 | 수동 검수 후 서비스 공개 승인 |
 | `output/service_public_pending.json` | 2,909 | 추가 검수 보류 |
 
@@ -394,6 +451,8 @@ AI 사용:
 | Stage 5 | `reddit_context_cache_builder.py` | 없음 | Reddit 문맥 수집 |
 | Stage 6 | `reddit_slang_llm_judger.py` | 있음 | 문맥별 슬랭 판정, 영어 정의 생성, slang_category 생성 |
 | Stage 7 | `rank_final_candidates.py` | 없음 | Stage 6 결과 기반 점수 계산 |
+| 후처리 | `build_final_dataset.py` | 없음 | 최종 데이터셋 결합 |
+| 후처리 | `enrich_dataset.py` | 없음 | difficulty_tier 부여, 일부 정의 수동 패치(`DEFINITION_PATCHES`) |
 | 후처리 | `add_korean_definitions.py` | 있음 | 한국어 정의 번역, 서비스 카테고리 생성/재분류 |
 | 후처리 | `generate_examples.py` | 있음 | 학습용 영어 예문과 한국어 번역 생성 |
 | 후처리 | `review_tool.py` | 없음 | 수동 검수 |
@@ -576,16 +635,18 @@ Stage 6의 `reddit_slang_llm_judger.py`는 이 파이프라인에서 AI가 처�
 
 ## 11. 하드코딩 경로 및 재현 시 주의사항
 
-### 하드코딩된 절대 경로
+### 덤프 경로 설정
+
+스크립트에 개인 PC의 절대경로는 없고, 덤프 경로는 환경변수로 지정한다.
+
+| 입력 | 환경변수 | 기본값 | 사용 스크립트 |
+|---|---|---|---|
+| Reddit 댓글 덤프 `.zst` 2개 | `REDDIT_DUMP_PATHS` (`os.pathsep` 구분: Windows `;` / POSIX `:`) | `data_pipeline/dump/RC_2025-09.zst`, `data_pipeline/dump/RC_2025-12.zst` | `parse_slang_raw.py`, `reddit_context_cache_builder.py` |
+| Wiktionary 덤프 | `WIKTIONARY_DUMP_PATH` | `data_pipeline/dump/enwiktionary-20250920-pages-articles-multistream.xml.bz2` | `parse_wiktionary.py` |
 
 ```text
-C:\Users\User\Downloads\reddit\comments\RC_2025-09.zst   # parse_slang_raw.py:24
-C:\Users\User\Downloads\reddit\comments\RC_2025-12.zst   # parse_slang_raw.py:25
-                                                          # reddit_context_cache_builder.py:26-27 (동일)
-data_pipeline/dump/enwiktionary-20250920-pages-articles-multistream.xml.bz2  # parse_wiktionary.py:10
+set REDDIT_DUMP_PATHS=D:\reddit\RC_2025-09.zst;D:\reddit\RC_2025-12.zst
 ```
-
-Reddit 덤프 경로는 최초 구축 당시 작업 PC 기준이다. 다른 환경에서 Stage 2·5를 재실행하려면 각 스크립트 상단의 `REDDIT_DUMP_PATHS`를 수정해야 한다.
 
 ### Stage 2 → Stage 3 경로 불일치
 
@@ -599,15 +660,18 @@ Stage 2 출력 경로(`matched_candidates.json` 등)는 실행 디렉터리 기�
 |------|-----------|
 | `data_pipeline/dump/` | Stage 1 |
 | Reddit `.zst` 덤프 2개 | Stage 2, 5 |
-| `data_pipeline/data/` (중간 산출물) | Stage 3, 4, 5, 6 |
+| `data_pipeline/data/` 중 `filter_summary.json`, `scored_candidates.json.gz`, `scored_candidates_sample.json` 외 (예: `filtered_candidates.json`) | Stage 3, 4, 5, 6 |
 | `data_pipeline/candidate_context_cache.jsonl` (~643MB) | Stage 6 |
+| `data_pipeline/output/context_judgments.jsonl` | `build_final_dataset.py` |
 | `data_pipeline/stratified_review_output/ranked_candidates_full.json` | Stage 7 |
 
-Stage 1–7의 결과물인 `data_pipeline/output/` 하위 파일은 저장소에 커밋되어 있으므로, 서비스 투입 스크립트(6장)는 clone 직후 바로 실행 가능하다.
+`scored_candidates.json`은 압축본(`scored_candidates.json.gz`)만 저장소에 있으므로, Stage 5·6을 재실행하려면 먼저 압축을 풀어 `data_pipeline/data/scored_candidates.json`을 만들어야 한다.
+
+`data_pipeline/output/`에 커밋된 파일은 `word_summary.jsonl`, `ranked_candidates.jsonl`, `final_dataset.jsonl`, `db_insert_draft.json`, `service_public_approved.json`, `service_public_pending.json`뿐이다. `slang_raw.json`, `scan_stats.json`, `context_judgments.jsonl` 등은 저장소에 없다. 서비스 투입 스크립트(6장)의 입력 파일은 clone 직후 갖춰져 있으나, LLM을 쓰는 스크립트는 `OPENAI_API_KEY`가 필요하다.
 
 ### 미사용 리소스
 
-`data_pipeline/resources/` 의 4개 파일(`canonical_cue_map.json`, `domain_lexicon.json`, `polarity_lexicon.json`, `cannot_link_rules.json`)은 초기 실험 단계의 산물로, **현재 파이프라인의 어떤 스크립트도 참조하지 않는다.**
+`data_pipeline/resources/` 의 4개 파일(`canonical_cue_map.json`, `domain_lexicon.json`, `polarity_lexicon.json`, `cannot_link_rules.json`)은 **현재 저장소의 어떤 스크립트·테스트·CI도 참조하지 않는다.** 이전 버전 스크립트가 참조했던 것으로 보이며(저장소 정리 과정에서 삭제됨) 현재 파이프라인은 사용하지 않는다.
 
 ---
 
@@ -672,7 +736,7 @@ CI에서 두 스크립트를 실행해 재발을 막는다.
 python -m pytest tests/ -q
 ```
 
-파이프라인 본체는 수백 GB의 외부 데이터를 요구해 통합 테스트가 어렵다. 대신 결과 랭킹을
+파이프라인 본체는 대용량 외부 덤프(Reddit, Wiktionary)를 요구해 통합 테스트가 어렵다. 대신 결과 랭킹을
 좌우하는 순수 함수만 떼어내 검증한다.
 
 - `compute_support_score` — 공식 일치, 음수 입력 클램프, 가중치 대소관계

@@ -19,14 +19,14 @@ Wiktionary 슬랭 후보
 ```
 
 압축 상태의 Reddit 월간 덤프 2개를 **단일 머신에서 스트리밍 처리**하고,
-LLM 판정과 수동 검수는 **단어 단위로 진행분을 저장**해 중단에 대비했다.
+LLM 판정(drop 항목)·예문 생성·수동 검수는 **단어 단위로 진행분을 저장**해 중단에 대비했다 (Stage 1·2·5와 한국어 정의 생성은 중간 저장이 없다).
 
 | | |
 |---|---|
 | **Python** | 3.12 · 의존성 3개 (`mwparserfromhell`, `zstandard`, `openai`) |
-| **LLM** | gpt-4.1-nano · `temperature=0` · JSON 스키마 강제 |
+| **LLM** | gpt-4.1-nano · `temperature=0` · JSON 응답 강제(`response_format=json_object`) |
 | **검증** | 단위 테스트 43개 · CI에서 데이터 품질 게이트 2종 |
-| **산출물** | [`data_pipeline/output/`](data_pipeline/output/) — 저장소에 포함. 품질 리포트·테스트는 clone 후 바로 실행 가능 |
+| **산출물** | [`data_pipeline/output/`](data_pipeline/output/) — 저장소에 포함. 품질 리포트는 clone 후 바로, 테스트는 의존성 설치 후 실행 가능 |
 
 ---
 
@@ -36,12 +36,12 @@ LLM 판정과 수동 검수는 **단어 단위로 진행분을 저장**해 중�
 
 | word | 한국어 뜻 | 예문 | 번역 |
 |---|---|---|---|
-| `goat` | 역대 최고를 의미하며, 어떤 분야에서 최고의 사람을 칭할 때 | Serena is the goat at tennis! | 세리나는 테니스의 최고야! |
-| `sick` | 멋지고 인상적이거나 훌륭한 것을 표현할 때 쓰이며, 강한 긍정을 나타냄 | That new car is sick! | 저 새 차 진짜 멋지다! |
-| `dm` | 온라인에서 누군가에게 비공개 메시지를 보내는 것 | I just sent you a dm about the meetup. | 모임 관련해서 방금 너한테 메시지 보냈어. |
-| `gif` | 반복 재생되는 짧은 애니메이션 이미지로, 감정이나 반응을 표현할 때 | Check out this funny gif I found! | 이 웃긴 gif 하나 찾았어, 봐봐! |
+| `goat` | 역대 최고를 의미하며, 어떤 분야에서 최고의 사람을 칭할 때 사용됩니다. | Serena is the goat at tennis! | 세리나는 테니스의 최고야! |
+| `sick` | 멋지고 인상적이거나 훌륭한 것을 표현할 때 쓰이며, 강한 긍정을 나타냅니다. | That new car is sick! | 저 새 차 진짜 멋지다! |
+| `dm` | 온라인에서 누군가에게 비공개 메시지 또는 다이렉트 메시지를 보내는 것, 주로 대화를 시작하거나 정보를 공유할 때 사용한다. | I just sent you a dm about the meetup. | 모임 관련해서 방금 너한테 다이렉트 메시지 보냈어. |
+| `gif` | 반복 재생되는 짧은 애니메이션 이미지로, 온라인에서 감정이나 반응, 유머를 표현할 때 사용한다. | Check out this funny gif I found! | 이 웃긴 gif 하나 찾았어, 봐봐! |
 
-각 단어는 우선순위 점수, 슬랭 유형, 난이도 tier, 서비스 카테고리를 함께 갖는다.
+`final_dataset.jsonl`의 각 단어는 우선순위 점수, 슬랭 유형, 난이도 tier, 서비스 카테고리를 함께 갖는다 (`service_public_approved.json`은 영어·한국어 정의, 예문, 카테고리 중심이다).
 
 ---
 
@@ -65,7 +65,7 @@ LLM 판정 통과                      3,338   (enough 2,412 + holdout 926)
 검수 통과                            384
 ```
 
-33,009에서 3,735를 빼면 29,274인데 29,123과 151 차이가 나는 것은 정규화 과정에서 일부 표제어가 합쳐지기 때문이다.
+고유 표제어 수는 집계 기준에 따라 다르다: 소문자 기준 33,009, 정규화 후 32,858(= 매칭 29,123 + 미매칭 3,735). 33,009와 32,858의 151 차이가 소문자 기준과 정규화 후 기준의 차이이다.
 
 Stage 3에서 13,925단어가 제거됐다. 사유별로는 `match_count <= 200` 13,753, stopword 단독 173, 기능어 구문 20이다
 (한 단어가 사유를 둘 이상 가질 수 있어 합계가 13,925와 정확히 일치하지 않는다).
@@ -139,7 +139,7 @@ prune  : score < 3.20                          (6,297개)
 - **keep 컷 3.65**: 실제로 쓰이는 슬랭 여러 개를 positive seed로 두고 점수를 계산한 뒤,
   그 최저점보다 약간 낮은 값으로 정했다. 3.20~3.65는 버리지 않고 gray_zone으로 따로 남겼다.
   사람 검수(approved 384개)를 통과한 단어 중 최저점도 `hangry`(3.651), `pog`(3.679), `high key`(3.691)로 컷 바로 위에 모여 있다.
-  컷을 ±0.05 옮기면 약 250개, ±0.1 옮기면 약 510개 변한다.
+  컷을 ±0.05 옮기면 250~263개, ±0.1 옮기면 511~516개 변한다 ([QUALITY_METRICS.md](QUALITY_METRICS.md) 10절).
 - sense(정의)별로 흩어진 행은 `normalized_word`로 묶고, `match_count`와 `subreddit_count`는 묶음 안의 **최댓값**을 쓴다.
 
 한계: gray·prune은 이후 단계에서 판정하지 않았다. 컷 바로 아래에도 `shawty`, `newb`, `borked` 같은 단어가 있어 일부 슬랭이 누락됐을 수 있다.
@@ -157,7 +157,7 @@ Reddit 월간 댓글 덤프는 압축 상태로만 다룰 수 있고, 전체 레
 Wiktionary 덤프도 마찬가지다.
 
 → **양쪽 모두 스트리밍으로 처리했다.** Wiktionary는 `bz2` + `ElementTree.iterparse`,
-Reddit은 `zstandard` 스트리밍. 메모리 사용량이 입력 크기와 무관하게 일정하다.
+Reddit은 `zstandard` 스트리밍. 원본 덤프 전체를 메모리에 올리지 않고 후보와 집계 결과만 보관한다.
 
 ### 2. 어느 문맥을 뽑을지 미리 정할 수 없다
 
@@ -198,10 +198,10 @@ drop 조건은 두 가지다: 초기 60개에서 K=0, 또는 캐시된 문맥이
 
 ### 4. 수천 번의 API 호출은 반드시 중간에 끊긴다
 
-→ **중단을 정상 경로로 가정했다.**
+→ **Stage 6·예문 생성·수동 검수는 중단을 정상 경로로 가정했다.**
 판정 결과를 단어 단위로 즉시 flush하고, 재실행 시 `decision == "drop"` 항목은 다시 판정하지 않는다. (drop이 아닌 단어는 재실행 시 처음부터 다시 판정한다.)
-재판정 비용을 막으면서 판정 일관성도 유지된다.
-수동 검수는 progress 파일로 진행분을 보존한다.
+예문 생성(`example_gen_progress.jsonl`)과 수동 검수(`review_progress.jsonl`)는 progress 파일로 진행분을 보존한다.
+Stage 1·2·5와 한국어 정의 생성(`add_korean_definitions.py`)은 실행이 끝나야 결과를 저장하므로 중간에 끊기면 처음부터 다시 돌려야 한다.
 
 ### 5. 빈도만으로 랭킹하면 슬랭이 아닌 단어가 상위에 온다
 
@@ -220,7 +220,7 @@ priority_score  = log10(1 + expected_capped) × (1 - penalty)
 ## LLM 출력을 신뢰하지 않는다
 
 이 파이프라인은 LLM을 세 곳에서 쓴다 — 슬랭 판정, 정의 생성, 예문 생성.
-전부 `temperature=0` + JSON 스키마 강제이고, **프롬프트 전문이 문서에 공개되어 있다**
+전부 `temperature=0` + JSON 응답 강제(`response_format=json_object`)이고, **프롬프트 전문이 문서에 공개되어 있다**
 ([PIPELINE_REPORT.md §9](PIPELINE_REPORT.md)).
 
 그런데 프롬프트만으로는 부족했다.
@@ -273,6 +273,7 @@ python data_pipeline/quality_report.py --strict
 ## 테스트
 
 ```bash
+pip install pytest            # requirements.txt에는 없다 (CI도 따로 설치)
 python -m pytest tests/ -q     # 43 passed
 ```
 
@@ -304,7 +305,9 @@ $env:OPENAI_API_KEY = "sk-..."
 export REDDIT_DUMP_PATHS="/data/RC_2025-09.zst:/data/RC_2025-12.zst"
 ```
 
-모든 스크립트는 **저장소 루트**에서 실행한다.
+`OPENAI_MODEL`로 모델을 바꿀 수 있다 (선택, 기본값 `gpt-4.1-nano`).
+
+모든 스크립트는 **저장소 루트**에서 실행한다. Stage 2의 출력 경로와 Stage 3의 기본 입력 경로가 달라 `--input`으로 지정해야 하는 등 재현 시 주의점은 [PIPELINE_REPORT.md §11](PIPELINE_REPORT.md)에 있다.
 
 ```
 Stage 1  parse_wiktionary.py              Wiktionary XML(bz2) → 슬랭 후보 추출
@@ -317,15 +320,15 @@ Stage 7  rank_final_candidates.py         priority_score 랭킹 → 3,293개
 
 [데이터셋 조립]
          build_final_dataset.py           → final_dataset.jsonl
-         enrich_dataset.py                → difficulty_tier 부여 (rank≤200 / ≤700 / 나머지)
+         enrich_dataset.py                → difficulty_tier 부여 (rank≤200 / ≤700 / 나머지), 예문 검증
          add_korean_definitions.py        → 한국어 정의 + 서비스 카테고리
          review_tool.py                   → 수동 검수 CLI
          generate_examples.py             → 학습용 예문 (승인 단어만)
-         export_db.py                     → DB 투입용 초안 내보내기
+         export_db.py                     → 초안 내보내기, 서비스 투입본 아님 (코드의 출력 파일명은 db_insert.json, 저장소에는 db_insert_draft.json으로 있다)
 ```
 
-**Stage 1–7은 이미 실행 완료 상태다.** 산출물이 저장소에 있어 품질 리포트, 테스트,
-서비스 투입 스크립트는 외부 데이터 없이 바로 돌릴 수 있다.
+**Stage 1–7은 이미 실행 완료 상태다.** 산출물이 저장소에 있어 품질 리포트와 동기화 검사는 외부 데이터 없이 바로 돌릴 수 있다.
+LLM을 쓰는 후처리 스크립트는 `OPENAI_API_KEY`가 필요하고, 저장소의 `final_dataset.jsonl`에는 `reddit_examples` 필드가 없어 `export_db.py`를 다시 돌리면 `example_en`이 비어 나온다.
 
 ---
 
@@ -334,8 +337,9 @@ Stage 7  rank_final_candidates.py         priority_score 랭킹 → 3,293개
 | 문서 | 내용 |
 |---|---|
 | [PIPELINE_REPORT.md](PIPELINE_REPORT.md) | 단계별 알고리즘, **LLM 프롬프트 전문**, 검증 도구, 재현 조건 |
+| [QUALITY_METRICS.md](QUALITY_METRICS.md) | 커밋된 산출물로 계산한 퍼널·분포·Stage 4 점수 구간별 판정 결과 (`build_quality_metrics.py`로 생성, 내부 일관성 지표이며 정답 라벨 기반 정확도는 아님) |
 | [DATA_REPORT_FINAL.md](DATA_REPORT_FINAL.md) | 졸업작품 보고서용 데이터 구조·출처 분석 |
-| [DATA_LICENSE.md](DATA_LICENSE.md) | 데이터 출처와 라이선스 (Wiktionary CC BY-SA 승계) |
+| [DATA_LICENSE.md](DATA_LICENSE.md) | 데이터 출처와 라이선스 (Wiktionary CC BY-SA 승계), Reddit 댓글 원문이 담긴 파일 목록 |
 
 **라이선스**: 코드 MIT · 데이터셋 CC BY-SA 4.0
 
