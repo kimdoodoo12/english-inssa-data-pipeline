@@ -1,6 +1,7 @@
 """데이터 품질 지표 리포트(QUALITY_METRICS.md) 생성기.
 
-data_pipeline/output/ 에 커밋된 파일만 읽는다. 새 라벨링/LLM 호출/외부 데이터 없음, 표준 라이브러리만 사용.
+data_pipeline/output/ 와 data_pipeline/data/scored_candidates.json.gz 등 저장소에 커밋된 파일만 읽는다.
+새 라벨링/LLM 호출/외부 데이터 없음, 표준 라이브러리만 사용.
 quality_report.py 가 '건수 분포/어휘 검증'을 다룬다면, 이 스크립트는
 퍼널 정합성, slang_ratio 통계, 승인 vs 비승인 비교, 노이즈 의심, 필드 완결성을 다룬다.
 
@@ -9,6 +10,7 @@ quality_report.py 가 '건수 분포/어휘 검증'을 다룬다면, 이 스크�
 
 from __future__ import annotations
 
+import gzip
 import json
 import statistics
 from collections import Counter
@@ -19,6 +21,7 @@ OUTPUT_DIR = Path("data_pipeline/output")
 REPORT_PATH = Path("QUALITY_METRICS.md")
 
 WORD_SUMMARY_PATH = OUTPUT_DIR / "word_summary.jsonl"
+SCORED_PATH = Path("data_pipeline/data/scored_candidates.json.gz")
 FINAL_PATH = OUTPUT_DIR / "final_dataset.jsonl"
 RANKED_PATH = OUTPUT_DIR / "ranked_candidates.jsonl"
 APPROVED_PATH = OUTPUT_DIR / "service_public_approved.json"
@@ -32,6 +35,12 @@ HOLDOUT_MIN_HITS = 3
 HOLDOUT_MIN_RATIO = 0.05 / 3
 N_DISPUTABLE = 3  # 9절: approved 중 priority rank 상위 N개를 '슬랭 여부 검토 필요' 예시 후보로 표시
 BAR_WIDTH = 30
+# 10절: Stage 4 점수 구간 [하한, 상한) 과 keep 컷 민감도 (rank_slang_candidates.py 의 keep 컷 3.65 기준)
+SCORE_BINS = [(3.65, 4.0), (4.0, 5.0), (5.0, float("inf"))]
+HIGH_SCORE = 5.5
+N_DROP_EXAMPLES = 10
+KEEP_CUT = 3.65
+CUT_GRID = [3.40, 3.50, 3.60, 3.65, 3.70, 3.80, 3.90, 4.00]
 
 KNOWN_SLANG = [
     "vibe", "fire", "cringe", "rizz", "slay", "sus", "cap", "bet",
@@ -423,6 +432,61 @@ def sec_limitations(final, approved, pending) -> List[str]:
     return out
 
 
+def sec_score_bins(ws) -> List[str]:
+    out = ["## 10. Stage 4 점수 구간별 LLM 판정 결과", ""]
+    if not SCORED_PATH.exists():
+        out += [f"`{SCORED_PATH.as_posix()}` 가 없어 이 절을 건너뛴다.", ""]
+        return out
+    with gzip.open(SCORED_PATH, "rt", encoding="utf-8") as f:
+        scored = json.load(f)
+    score = {r["normalized_word"]: r["support_score"] for r in scored}
+    all_scores = list(score.values())
+    judged = [(score[r["normalized_word"]], r) for r in ws if r["normalized_word"] in score]
+    out.append(f"scored_candidates {len(scored):,}개 중 word_summary 판정 대상 {len(judged):,}개를 `normalized_word` 로 결합했다"
+               f"(word_summary {len(ws):,}개).")
+    out.append("")
+
+    rows = []
+    for lo, hi in SCORE_BINS:
+        grp = [r for s, r in judged if lo <= s < hi]
+        ratios = [r["slang_hits"] / r["sampled"] for r in grp if r["sampled"] > 0]
+        n_enough = sum(1 for r in grp if r["decision"] == "enough_evidence")
+        label = f"{lo:.2f}~{hi:.1f}" if hi != float("inf") else f"{lo:.1f}+"
+        rows.append([label, f"{len(grp):,}",
+                     f"{statistics.median(ratios) * 100:.1f}%" if ratios else "-",
+                     f"{statistics.mean(ratios) * 100:.1f}%" if ratios else "-",
+                     pct(n_enough, len(grp))])
+    out += table(["점수 구간", "단어 수", "슬랭 비율 중앙값", "슬랭 비율 평균", "enough_evidence 비율"], rows)
+    out.append("슬랭 비율 = slang_hits / sampled (sampled > 0 인 판정 대상).")
+    out.append("")
+
+    hi_grp = [(s, r) for s, r in judged if s >= HIGH_SCORE]
+    drops = sorted(((s, r) for s, r in hi_grp if r["decision"] == "drop"), key=lambda x: -x[0])
+    out.append(f"### 점수 {HIGH_SCORE} 이상")
+    out.append("")
+    out.append(f"- 판정 대상 {len(hi_grp):,}개 중 drop {len(drops):,}개 ({pct(len(drops), len(hi_grp))}).")
+    out.append("- drop 상위 점수 예시: " + ", ".join(f"{r['normalized_word']}({s:.2f})" for s, r in drops[:N_DROP_EXAMPLES]) + ".")
+    out.append("")
+
+    out.append("### keep 컷 민감도")
+    out.append("")
+    keep_n = {c: sum(1 for s in all_scores if s >= c) for c in CUT_GRID}
+    out += table(["컷", "keep 수"], [[f"{c:.2f}", f"{keep_n[c]:,}"] for c in CUT_GRID])
+    base = sum(1 for s in all_scores if s >= KEEP_CUT)
+    for d in (0.05, 0.1):
+        up = sum(1 for s in all_scores if s >= KEEP_CUT - d)
+        dn = sum(1 for s in all_scores if s >= KEEP_CUT + d)
+        out.append(f"- 컷 {KEEP_CUT} 기준 ±{d}: 낮추면 +{up - base:,}개, 높이면 -{base - dn:,}개 (keep {base:,}개 기준).")
+    out.append("")
+
+    out.append("**해석 주의**: 점수는 빈도 지표이며 슬랭 여부를 판별하지 않는다. "
+               "구간별 슬랭 비율은 LLM 판정 결과이므로 정답 라벨이 아니다. "
+               "또 판정 대상은 이미 점수 컷(keep)을 통과한 단어뿐이라 낮은 점수 구간의 슬랭 비율은 알 수 없고(선택 편향), "
+               "고점수 구간의 낮은 비율도 판정 결과일 뿐이어서 점수와 슬랭 비율의 관계를 순환 없이 검증한 것이 아니다.")
+    out.append("")
+    return out
+
+
 # =========================
 # Main
 # =========================
@@ -445,6 +509,7 @@ def build_report() -> str:
     out += sec_noise(final, approved)
     out += sec_completeness(final, approved, pending)
     out += sec_limitations(final, approved, pending)
+    out += sec_score_bins(ws)
     return "\n".join(out)
 
 
